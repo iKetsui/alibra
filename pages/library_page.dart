@@ -35,7 +35,7 @@ class _LibraryPageState extends State<LibraryPage> {
               'No books added yet',
               style: TextStyle(
                 fontSize: 16,
-                color: const Color(0xFF7F8C8D),
+                color: const Color.fromARGB(254, 127, 140, 141),
               ),
             ),
           ],

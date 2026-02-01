@@ -53,7 +53,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         _darkMode = value;
                       });
                     },
-                    activeColor: const Color(0xFF3498DB),
+                    activeColor: const Color.fromARGB(248, 52, 152, 219),
                   ),
                 ],
               ),

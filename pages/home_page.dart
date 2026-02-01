@@ -11,7 +11,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFFFFFFF),
+      color: const Color.fromARGB(247, 255, 255, 255),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
