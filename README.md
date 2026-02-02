@@ -1,4 +1,6 @@
 # WORK IN PROGRESS 
+## E-Reader application for android with customizable library
+
 Since i hate messy folders that flutter does i only keep track of lib folder.
 
 if you would like to test things yourself kindly add all repo files into `lib/` folder by initilizing flutter project manually.
