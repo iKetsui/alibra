@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'models/book.dart';
+import 'utils/file_picker.dart';
 import 'pages/home_page.dart';
 import 'pages/library_page.dart';
 import 'pages/settings_page.dart';
@@ -13,7 +15,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'alibra',
+      title: 'E-Reader',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -27,7 +29,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const ModernHomePage(title: 'ALIBRA'),
+      home: const ModernHomePage(title: 'E-Reader'),
     );
   }
 }
@@ -45,6 +47,7 @@ class _ModernHomePageState extends State<ModernHomePage> {
   final PageController _pageController = PageController();
   bool _showAddBookOverlay = false;
   OverlayEntry? _overlayEntry;
+  List<Book> _books = [];
 
   final List<NavigationItem> _navigationItems = [
     NavigationItem(
@@ -76,6 +79,17 @@ class _ModernHomePageState extends State<ModernHomePage> {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
+  }
+
+  Future<void> _pickAndAddBook() async {
+    _toggleAddBookOverlay(); // Close the overlay first
+    
+    final book = await FilePickerHelper.pickBook();
+    if (book != null) {
+      setState(() {
+        _books.add(book);
+      });
+    }
   }
 
   void _toggleAddBookOverlay() {
@@ -130,10 +144,7 @@ class _ModernHomePageState extends State<ModernHomePage> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         ElevatedButton(
-                          onPressed: () {
-                            print('Add book to library pressed');
-                            _toggleAddBookOverlay();
-                          },
+                          onPressed: _pickAndAddBook,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF3498DB),
                             shape: RoundedRectangleBorder(
@@ -142,7 +153,7 @@ class _ModernHomePageState extends State<ModernHomePage> {
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                           child: const Text(
-                            'add a book to library',
+                            'Add PDF/EPUB',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 14,
@@ -161,6 +172,11 @@ class _ModernHomePageState extends State<ModernHomePage> {
         ),
       ),
     );
+  }
+
+  void _onBookTap(Book book) {
+    print('Book tapped: ${book.title}');
+    // Empty function for now - will be implemented later
   }
 
   Widget _buildFloatingActionButton() {
@@ -208,7 +224,6 @@ class _ModernHomePageState extends State<ModernHomePage> {
           icon: const Icon(Icons.menu, color: Color(0xFF2C3E50)),
           onPressed: () {},
         ),
-        // Removed notifications action button
       ),
       body: PageView(
         controller: _pageController,
@@ -218,10 +233,13 @@ class _ModernHomePageState extends State<ModernHomePage> {
           });
         },
         physics: const BouncingScrollPhysics(),
-        children: const [
-          HomePage(),
-          LibraryPage(),
-          SettingsPage(),
+        children: [
+          const HomePage(),
+          LibraryPage(
+            books: _books,
+            onBookTap: _onBookTap,
+          ),
+          const SettingsPage(),
         ],
       ),
       floatingActionButton: _buildFloatingActionButton(),
