@@ -82,7 +82,7 @@ class _ModernHomePageState extends State<ModernHomePage> {
   }
 
   Future<void> _pickAndAddBook() async {
-    _toggleAddBookOverlay(); // Close the overlay first
+    _toggleAddBookOverlay();
     
     final book = await FilePickerHelper.pickBook();
     if (book != null) {
@@ -176,7 +176,25 @@ class _ModernHomePageState extends State<ModernHomePage> {
 
   void _onBookTap(Book book) {
     print('Book tapped: ${book.title}');
-    // Empty function for now - will be implemented later
+    // Empty function for now
+  }
+
+  void _onBooksDelete(List<Book> books) {
+    setState(() {
+      _books.removeWhere((book) => books.any((b) => b.id == book.id));
+    });
+    
+    // Show snackbar confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          books.length == 1
+              ? 'Removed "${books.first.title}" from library'
+              : 'Removed ${books.length} books from library',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   Widget _buildFloatingActionButton() {
@@ -238,6 +256,7 @@ class _ModernHomePageState extends State<ModernHomePage> {
           LibraryPage(
             books: _books,
             onBookTap: _onBookTap,
+            onBooksDelete: _onBooksDelete,
           ),
           const SettingsPage(),
         ],

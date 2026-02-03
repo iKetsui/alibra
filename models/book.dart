@@ -38,4 +38,23 @@ class Book {
         return 0xFF45B7D1; // Blue
     }
   }
+  
+  // Copy with changes
+  Book copyWith({
+    String? id,
+    String? title,
+    String? author,
+    String? filePath,
+    String? fileType,
+    DateTime? addedDate,
+  }) {
+    return Book(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      author: author ?? this.author,
+      filePath: filePath ?? this.filePath,
+      fileType: fileType ?? this.fileType,
+      addedDate: addedDate ?? this.addedDate,
+    );
+  }
 }
