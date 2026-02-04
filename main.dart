@@ -81,17 +81,16 @@ class _ModernHomePageState extends State<ModernHomePage> {
     );
   }
 
-  Future<void> _pickAndAddBook() async {
-    _toggleAddBookOverlay();
-    
-    final book = await FilePickerHelper.pickBook();
-    if (book != null) {
-      setState(() {
-        _books.add(book);
-      });
-    }
+Future<void> _pickAndAddBook() async {
+  _toggleAddBookOverlay();
+  
+  final books = await FilePickerHelper.pickBooks(); // Use pickBooks() instead
+  if (books.isNotEmpty) {
+    setState(() {
+      _books.addAll(books); // Add all books at once
+    });
   }
-
+}
   void _toggleAddBookOverlay() {
     if (_showAddBookOverlay) {
       _overlayEntry?.remove();
