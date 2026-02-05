@@ -3,23 +3,25 @@ import '../models/book.dart';
 
 class LibraryPage extends StatefulWidget {
   final List<Book> books;
-  final Function(Book)? onBookTap;
-  final Function(List<Book>)? onBooksDelete;
-  
+  final Function(Book) onBookSelected;
+  final Function(List<String>) onBooksAdded;
+  final Function(List<Book>)? onBooksDelete; // Added missing parameter
+
   const LibraryPage({
     super.key,
     required this.books,
-    this.onBookTap,
-    this.onBooksDelete,
+    required this.onBookSelected,
+    required this.onBooksAdded,
+    this.onBooksDelete, // Added this
   });
-
+  
   @override
   State<LibraryPage> createState() => _LibraryPageState();
 }
 
 class _LibraryPageState extends State<LibraryPage> {
   // Track which books are selected for deletion
-  Set<String> _selectedBooks = {};
+  final Set<String> _selectedBooks = {};
   bool _isDeleteMode = false;
   
   @override
@@ -32,7 +34,7 @@ class _LibraryPageState extends State<LibraryPage> {
             // Delete mode header (only shows when in delete mode)
             if (_isDeleteMode)
               Container(
-                color: Colors.red.withOpacity(0.9),
+                color: const Color.fromRGBO(240, 37, 37, 0.894),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -57,7 +59,7 @@ class _LibraryPageState extends State<LibraryPage> {
             // Main content area
             Expanded(
               child: Container(
-                color: _isDeleteMode ? Colors.red.withOpacity(0.05) : const Color(0xFFFFFFFF),
+                color: _isDeleteMode ? const Color.fromRGBO(255, 0, 0, 0.05) : const Color(0xFFFFFFFF),
                 padding: const EdgeInsets.all(16),
                 child: widget.books.isEmpty
                     ? Center(
@@ -116,58 +118,52 @@ class _LibraryPageState extends State<LibraryPage> {
           ],
         ),
         
-        // Animated delete button (slides from bottom)
+        // Delete button (no animation)
         if (_selectedBooks.isNotEmpty && _isDeleteMode)
-          Positioned.fill(
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: AnimatedSlide(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOut,
-                offset: Offset(0, _selectedBooks.isNotEmpty ? 0 : 1),
+          Positioned(
+            bottom: 16,
+            left: 16,
+            right: 16,
+            child: Container(
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(22),
                 child: Container(
-                  margin: const EdgeInsets.all(16),
-                  child: Material(
-                    elevation: 8,
+                  width: 245,
+                  height: 45,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
                     borderRadius: BorderRadius.circular(22),
-                    child: Container(
-                      width: 235,
-                      height: 45,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
-                      child: InkWell(
-                        onTap: _deleteSelectedBooks,
-                        borderRadius: BorderRadius.circular(22),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.delete,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'DELETE ${_selectedBooks.length} BOOK${_selectedBooks.length > 1 ? 'S' : ''}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ],
+                    ],
+                  ),
+                  child: InkWell(
+                    onTap: _deleteSelectedBooks,
+                    borderRadius: BorderRadius.circular(22),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.delete,
+                          color: Colors.white,
+                          size: 24,
                         ),
-                      ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'DELETE ${_selectedBooks.length} BOOK${_selectedBooks.length > 1 ? 'S' : ''}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -197,19 +193,17 @@ class _LibraryPageState extends State<LibraryPage> {
           _toggleBookSelection(book.id);
         } else {
           // Normal mode - open book
-          if (widget.onBookTap != null) {
-            widget.onBookTap!(book);
-          }
+          widget.onBookSelected(book); // Fixed: Use onBookSelected instead of onBookTap
         }
       },
       child: Stack(
         children: [
           Container(
             decoration: BoxDecoration(
-              color: bookColor.withOpacity(0.1),
+              color: Color.fromRGBO(bookColor.red, bookColor.green, bookColor.blue, 0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isSelected ? Colors.red.withOpacity(0.8) : bookColor.withOpacity(0.3),
+                color: isSelected ? const Color.fromRGBO(216, 9, 9, 0.8) : Color.fromRGBO(bookColor.red, bookColor.green, bookColor.blue, 0.3),
                 width: isSelected ? 2.5 : 1,
               ),
             ),
@@ -220,7 +214,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: bookColor.withOpacity(0.2),
+                      color: Color.fromRGBO(bookColor.red, bookColor.green, bookColor.blue, 0.2),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(12),
                         topRight: Radius.circular(12),
@@ -236,8 +230,9 @@ class _LibraryPageState extends State<LibraryPage> {
                             color: bookColor,
                           ),
                           const SizedBox(height: 8),
+                          // FIXED: Changed from book.icon to book.fileType
                           Text(
-                            book.icon,
+                            book.fileType.toUpperCase(),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -268,18 +263,18 @@ class _LibraryPageState extends State<LibraryPage> {
                       const SizedBox(height: 4),
                       Text(
                         book.fileType.toUpperCase(),
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: const Color(0xFF7F8C8D),
+                          color: Color(0xFF7F8C8D),
                         ),
                       ),
-                      if (book.author != null) ...[
+                      if (book.author.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
-                          book.author!,
-                          style: TextStyle(
+                          book.author,
+                          style: const TextStyle(
                             fontSize: 12,
-                            color: const Color(0xFF7F8C8D),
+                            color: Color(0xFF7F8C8D),
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -293,33 +288,25 @@ class _LibraryPageState extends State<LibraryPage> {
           
           // Selection checkbox (top-left)
           if (_isDeleteMode)
-            Positioned(
-              top: 8,
-              left: 8,
-              child: GestureDetector(
-                onTap: () {
-                  _toggleBookSelection(book.id);
-                },
-                child: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: isSelected ? Colors.red : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isSelected ? Colors.red : Colors.grey,
-                      width: 2,
-                    ),
-                  ),
-                  child: isSelected
-                      ? const Icon(
-                          Icons.check,
-                          size: 16,
-                          color: Colors.white,
-                        )
-                      : null,
+            Container(
+              width: 24,
+              height: 24,
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.red : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected ? Colors.red : Colors.grey,
+                  width: 2,
                 ),
               ),
+              child: isSelected
+                  ? const Icon(
+                      Icons.check,
+                      size: 16,
+                      color: Colors.white,
+                    )
+                  : null,
             ),
           
           // Delete icon (top-right, only when selected)

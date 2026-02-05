@@ -32,6 +32,8 @@ class FilePickerHelper {
           title: title,
           filePath: filePath,
           fileType: fileExtension,
+          author: 'Unknown Author',
+          colorCode: Colors.primaries[books.length % Colors.primaries.length].value,
         ));
       }
       
@@ -40,5 +42,11 @@ class FilePickerHelper {
       print('Error picking files: $e');
       return [];
     }
+  }
+
+  // Alternative method that returns file paths (if needed)
+  static Future<List<String>> pickFiles() async {
+    final books = await pickBooks();
+    return books.map((book) => book.filePath).toList();
   }
 }

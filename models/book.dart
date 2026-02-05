@@ -1,60 +1,39 @@
 class Book {
   final String id;
   final String title;
-  final String? author;
   final String filePath;
-  final String fileType; // 'pdf' or 'epub'
-  final DateTime addedDate;
-  
+  final String fileType;
+  final String author;
+  final int colorCode;
+  final String icon;
+
   Book({
     required this.id,
     required this.title,
     required this.filePath,
     required this.fileType,
-    this.author,
-    DateTime? addedDate,
-  }) : addedDate = addedDate ?? DateTime.now();
-  
-  // Get appropriate icon based on file type
-  String get icon {
-    switch (fileType.toLowerCase()) {
-      case 'pdf':
-        return 'PDF';
-      case 'epub':
-        return 'EPUB';
-      default:
-        return 'DOC';
-    }
-  }
-  
-  // Get color based on file type
-  int get colorCode {
-    switch (fileType.toLowerCase()) {
-      case 'pdf':
-        return 0xFFFF6B6B; // Red
-      case 'epub':
-        return 0xFF4ECDC4; // Teal
-      default:
-        return 0xFF45B7D1; // Blue
-    }
-  }
-  
-  // Copy with changes
+    this.author = 'Unknown Author',
+    this.colorCode = 0xFF3498DB,
+    this.icon = '📚',
+  });
+
   Book copyWith({
     String? id,
     String? title,
-    String? author,
     String? filePath,
     String? fileType,
-    DateTime? addedDate,
+    String? author,
+    int? colorCode,
+    String? icon,
   }) {
     return Book(
       id: id ?? this.id,
       title: title ?? this.title,
-      author: author ?? this.author,
       filePath: filePath ?? this.filePath,
       fileType: fileType ?? this.fileType,
-      addedDate: addedDate ?? this.addedDate,
+      author: author ?? this.author,
+      colorCode: colorCode ?? this.colorCode,
+      icon: icon ?? this.icon,
     );
   }
 }

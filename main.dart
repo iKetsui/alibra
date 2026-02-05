@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'models/book.dart';
 import 'utils/file_picker.dart';
-import 'pages/home_page.dart';
 import 'pages/library_page.dart';
-import 'pages/settings_page.dart';
+import 'pages/reader_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -29,29 +28,26 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const ModernHomePage(title: 'E-Reader'),
+      home: const HomeScreen(),
     );
   }
 }
 
-class ModernHomePage extends StatefulWidget {
-  const ModernHomePage({super.key, required this.title});
-  final String title;
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<ModernHomePage> createState() => _ModernHomePageState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _ModernHomePageState extends State<ModernHomePage> {
+class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  final PageController _pageController = PageController();
-  bool _showAddBookOverlay = false;
-  OverlayEntry? _overlayEntry;
-  List<Book> _books = [];
+  final List<Book> _books = [];
 
+  // Navigation items
   final List<NavigationItem> _navigationItems = [
     NavigationItem(
-      icon: Icons.home_filled,
+      icon: Icons.home,
       label: 'Home',
       color: const Color(0xFF3498DB).withOpacity(0.1),
       activeColor: const Color(0xFF3498DB),
@@ -74,152 +70,219 @@ class _ModernHomePageState extends State<ModernHomePage> {
     setState(() {
       _selectedIndex = index;
     });
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
   }
 
-Future<void> _pickAndAddBook() async {
-  _toggleAddBookOverlay();
-  
-  final books = await FilePickerHelper.pickBooks(); // Use pickBooks() instead
-  if (books.isNotEmpty) {
+  Future<void> _addBooks(List<String> filePaths) async {
+    final newBooks = <Book>[];
+    for (final path in filePaths) {
+      final fileName = path.split('/').last;
+      final fileExtension = fileName.split('.').last.toLowerCase();
+      
+      newBooks.add(Book(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        title: fileName.replaceAll('.pdf', '').replaceAll('.epub', '').replaceAll('_', ' '),
+        filePath: path,
+        fileType: fileExtension,
+        author: 'Unknown Author',
+        colorCode: Colors.primaries[_books.length % Colors.primaries.length].value,
+      ));
+    }
+
     setState(() {
-      _books.addAll(books); // Add all books at once
+      _books.addAll(newBooks);
     });
   }
-}
-  void _toggleAddBookOverlay() {
-    if (_showAddBookOverlay) {
-      _overlayEntry?.remove();
-      setState(() {
-        _showAddBookOverlay = false;
-      });
-    } else {
-      setState(() {
-        _showAddBookOverlay = true;
-      });
-      _overlayEntry = _createOverlayEntry();
-      Overlay.of(context).insert(_overlayEntry!);
-    }
-  }
 
-  OverlayEntry _createOverlayEntry() {
-    RenderBox renderBox = context.findRenderObject() as RenderBox;
-    var size = renderBox.size;
-    var offset = renderBox.localToGlobal(Offset(size.width - 90, size.height - 200));
-
-    return OverlayEntry(
-      builder: (context) => GestureDetector(
-        onTap: _toggleAddBookOverlay,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            width: MediaQuery.of(context).size.width,
-            height: MediaQuery.of(context).size.height,
-            child: Stack(
-              children: [
-                Positioned(
-                  left: offset.dx - 120,
-                  top: offset.dy - 100,
-                  child: Container(
-                    width: 160,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFFFFF),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ElevatedButton(
-                          onPressed: _pickAndAddBook,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF3498DB),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: const Text(
-                            'Add PDF/EPUB',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+  void _openBook(Book book) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReaderPage(book: book),
       ),
     );
   }
 
-  void _onBookTap(Book book) {
-    print('Book tapped: ${book.title}');
-    // Empty function for now
-  }
-
-  void _onBooksDelete(List<Book> books) {
+  void _deleteBooks(List<Book> booksToDelete) {
     setState(() {
-      _books.removeWhere((book) => books.any((b) => b.id == book.id));
+      _books.removeWhere((book) => booksToDelete.contains(book));
     });
     
-    // Show snackbar confirmation
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          books.length == 1
-              ? 'Removed "${books.first.title}" from library'
-              : 'Removed ${books.length} books from library',
+          booksToDelete.length == 1
+              ? 'Removed "${booksToDelete.first.title}" from library'
+              : 'Removed ${booksToDelete.length} books from library',
         ),
         duration: const Duration(seconds: 2),
       ),
     );
   }
 
-  Widget _buildFloatingActionButton() {
-    if (_selectedIndex == 2) {
-      return Container();
+  Widget _buildCurrentPage() {
+    switch (_selectedIndex) {
+      case 0:
+        return _buildHomePage();
+      case 1:
+        return LibraryPage(
+          books: _books,
+          onBookSelected: _openBook,
+          onBooksAdded: _addBooks,
+          onBooksDelete: _deleteBooks,
+        );
+      case 2:
+        return _buildSettingsPage();
+      default:
+        return _buildHomePage();
     }
-    
-    return FloatingActionButton(
-      onPressed: _toggleAddBookOverlay,
-      backgroundColor: const Color(0xFF3498DB),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        child: Icon(
-          _showAddBookOverlay ? Icons.close : Icons.add,
-          key: ValueKey(_showAddBookOverlay),
-          color: Colors.white,
+  }
+
+  Widget _buildHomePage() {
+    return Container(
+      color: const Color(0xFFFFFFFF),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.menu_book,
+              size: 64,
+              color: const Color(0xFF3498DB),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Welcome to E-Reader',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF2C3E50),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Your personal digital library',
+              style: TextStyle(
+                fontSize: 16,
+                color: const Color(0xFF7F8C8D),
+              ),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _selectedIndex = 1; // Switch to Library page
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3498DB),
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+              ),
+              child: const Text(
+                'Browse Library',
+                style: TextStyle(fontSize: 16, color: Colors.white),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  @override
-  void dispose() {
-    _overlayEntry?.remove();
-    _pageController.dispose();
-    super.dispose();
+  Widget _buildSettingsPage() {
+    return Container(
+      color: const Color(0xFFFFFFFF),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.settings,
+              size: 64,
+              color: const Color(0xFF3498DB),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Settings',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF2C3E50),
+              ),
+            ),
+            const SizedBox(height: 30),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Column(
+                children: [
+                  _buildSettingItem(
+                    icon: Icons.palette,
+                    title: 'Theme',
+                    subtitle: 'Dark/Light mode',
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSettingItem(
+                    icon: Icons.storage,
+                    title: 'Storage',
+                    subtitle: '${_books.length} books in library',
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSettingItem(
+                    icon: Icons.info,
+                    title: 'About',
+                    subtitle: 'E-Reader v1.0.0',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE0E0E0)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFF3498DB)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2C3E50),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF7F8C8D),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: Color(0xFF7F8C8D)),
+        ],
+      ),
+    );
   }
 
   @override
@@ -230,44 +293,45 @@ Future<void> _pickAndAddBook() async {
         elevation: 0,
         centerTitle: true,
         title: Text(
-          widget.title,
+          _selectedIndex == 0
+              ? 'E-Reader'
+              : _selectedIndex == 1
+                  ? 'Library'
+                  : 'Settings',
           style: const TextStyle(
             color: Color(0xFF2C3E50),
             fontWeight: FontWeight.bold,
             fontSize: 22,
           ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Color(0xFF2C3E50)),
-          onPressed: () {},
-        ),
       ),
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        physics: const BouncingScrollPhysics(),
-        children: [
-          const HomePage(),
-          LibraryPage(
-            books: _books,
-            onBookTap: _onBookTap,
-            onBooksDelete: _onBooksDelete,
-          ),
-          const SettingsPage(),
-        ],
-      ),
-      floatingActionButton: _buildFloatingActionButton(),
+      body: _buildCurrentPage(),
+      floatingActionButton: _selectedIndex == 1
+          ? FloatingActionButton(
+              onPressed: () async {
+                final files = await FilePickerHelper.pickBooks();
+                if (files.isNotEmpty) {
+                  _addBooks(files.map((book) => book.filePath).toList());
+                }
+              },
+              backgroundColor: const Color(0xFF3498DB),
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFFFFFFFF),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: List.generate(
             _navigationItems.length,
             (index) {
@@ -277,17 +341,14 @@ Future<void> _pickAndAddBook() async {
               return GestureDetector(
                 onTap: () => _onItemTapped(index),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
+                  duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
+                    horizontal: 16,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFFF8F9FA) : Colors.transparent,
+                    color: isSelected ? item.color : Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
-                    border: isSelected
-                        ? Border.all(color: const Color(0xFF3498DB), width: 2)
-                        : null,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -295,7 +356,7 @@ Future<void> _pickAndAddBook() async {
                       Icon(
                         item.icon,
                         size: 24,
-                        color: isSelected ? const Color(0xFF3498DB) : const Color(0xFF7F8C8D),
+                        color: isSelected ? item.activeColor : const Color(0xFF7F8C8D),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -303,7 +364,7 @@ Future<void> _pickAndAddBook() async {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          color: isSelected ? const Color(0xFF3498DB) : const Color(0xFF7F8C8D),
+                          color: isSelected ? item.activeColor : const Color(0xFF7F8C8D),
                         ),
                       ),
                     ],
