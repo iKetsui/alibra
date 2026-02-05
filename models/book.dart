@@ -5,7 +5,6 @@ class Book {
   final String fileType;
   final String author;
   final int colorCode;
-  final String icon;
 
   Book({
     required this.id,
@@ -14,7 +13,6 @@ class Book {
     required this.fileType,
     this.author = 'Unknown Author',
     this.colorCode = 0xFF3498DB,
-    this.icon = '📚',
   });
 
   Book copyWith({
@@ -33,7 +31,6 @@ class Book {
       fileType: fileType ?? this.fileType,
       author: author ?? this.author,
       colorCode: colorCode ?? this.colorCode,
-      icon: icon ?? this.icon,
     );
   }
 }
