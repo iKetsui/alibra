@@ -127,7 +127,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return LibraryPage(
           books: _books,
           onBookSelected: _openBook,
-          onBooksAdded: _addBooks,
           onBooksDelete: _deleteBooks,
         );
       case 2:
