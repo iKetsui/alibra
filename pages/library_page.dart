@@ -69,7 +69,7 @@ class _LibraryPageState extends State<LibraryPage> {
       builder: (context, value, child) {
         final isSelected = deletionState?.isSelected(book.id) ?? false;
         final isDeleteMode = deletionState?.isDeleteMode ?? false;
-        final bookColor = Color(book.colorCode);
+        final bookColor = Color(book.colorCode); // Use the book's assigned color
         
         return GestureDetector(
           onLongPress: () {

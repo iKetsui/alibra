@@ -33,7 +33,7 @@ class FilePickerHelper {
           filePath: filePath,
           fileType: fileExtension,
           author: 'Unknown Author',
-          colorCode: Colors.primaries[books.length % Colors.primaries.length].value,
+          // Color will be auto-assigned by Book constructor
         ));
       }
       
@@ -42,11 +42,5 @@ class FilePickerHelper {
       print('Error picking files: $e');
       return [];
     }
-  }
-
-  // Alternative method that returns file paths (if needed)
-  static Future<List<String>> pickFiles() async {
-    final books = await pickBooks();
-    return books.map((book) => book.filePath).toList();
   }
 }

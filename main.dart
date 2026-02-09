@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'models/book.dart';
 import 'utils/file_picker.dart';
+import 'utils/storage_helper.dart'; // Add this
 import 'pages/library_page.dart';
 import 'pages/reader_page.dart';
 
@@ -42,7 +43,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  final List<Book> _books = [];
+  List<Book> _books = []; // Changed from final to mutable
 
   // Navigation items
   final List<NavigationItem> _navigationItems = [
@@ -66,6 +67,25 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadBooks(); // Load books when app starts
+  }
+
+  // Load books from storage - FIXED
+  Future<void> _loadBooks() async {
+    final savedBooks = await StorageHelper.loadBooks(); // Returns List<Book>
+    setState(() {
+      _books = savedBooks;
+    });
+  }
+
+  // Save books to storage - FIXED
+  Future<void> _saveBooks() async {
+    await StorageHelper.saveBooks(_books); // Takes List<Book>
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -84,13 +104,14 @@ class _HomeScreenState extends State<HomeScreen> {
         filePath: path,
         fileType: fileExtension,
         author: 'Unknown Author',
-        colorCode: Colors.primaries[_books.length % Colors.primaries.length].value,
       ));
     }
 
     setState(() {
       _books.addAll(newBooks);
     });
+    
+    await _saveBooks(); // Save after adding
   }
 
   void _openBook(Book book) {
@@ -106,6 +127,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _books.removeWhere((book) => booksToDelete.contains(book));
     });
+    
+    _saveBooks(); // Save after deleting
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -159,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 10),
             Text(
-              'Your personal digital library',
+              '${_books.length} books in your library',
               style: TextStyle(
                 fontSize: 16,
                 color: const Color(0xFF7F8C8D),

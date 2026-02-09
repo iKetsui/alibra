@@ -12,8 +12,43 @@ class Book {
     required this.filePath,
     required this.fileType,
     this.author = 'Unknown Author',
-    this.colorCode = 0xFF3498DB,
-  });
+    int? colorCode,
+  }) : colorCode = colorCode ?? _getColorCodeForFileType(fileType);
+
+  static int _getColorCodeForFileType(String fileType) {
+    switch (fileType.toLowerCase()) {
+      case 'pdf':
+        return 0xFFFF6B6B;
+      case 'epub':
+        return 0xFF4ECDC4;
+      default:
+        return 0xFF45B7D1;
+    }
+  }
+
+  // Convert to Map for storage
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'filePath': filePath,
+      'fileType': fileType,
+      'author': author,
+      'colorCode': colorCode,
+    };
+  }
+
+  // Create from Map
+  static Book fromMap(Map<String, dynamic> map) {
+    return Book(
+      id: map['id'],
+      title: map['title'],
+      filePath: map['filePath'],
+      fileType: map['fileType'],
+      author: map['author'] ?? 'Unknown Author',
+      colorCode: map['colorCode'],
+    );
+  }
 
   Book copyWith({
     String? id,
@@ -22,7 +57,6 @@ class Book {
     String? fileType,
     String? author,
     int? colorCode,
-    String? icon,
   }) {
     return Book(
       id: id ?? this.id,
