@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'models/book.dart';
 import 'utils/file_picker.dart';
-import 'utils/storage_helper.dart'; // Add this
+import 'utils/storage_helper.dart';
 import 'pages/library_page.dart';
 import 'pages/reader_page.dart';
+import 'pages/settings_page.dart'; // ← ADD THIS IMPORT
 
 void main() {
   runApp(const MyApp());
@@ -43,9 +44,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  List<Book> _books = []; // Changed from final to mutable
+  List<Book> _books = [];
 
-  // Navigation items
   final List<NavigationItem> _navigationItems = [
     NavigationItem(
       icon: Icons.home,
@@ -70,20 +70,18 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadBooks(); // Load books when app starts
+    _loadBooks();
   }
 
-  // Load books from storage - FIXED
   Future<void> _loadBooks() async {
-    final savedBooks = await StorageHelper.loadBooks(); // Returns List<Book>
+    final savedBooks = await StorageHelper.loadBooks();
     setState(() {
       _books = savedBooks;
     });
   }
 
-  // Save books to storage - FIXED
   Future<void> _saveBooks() async {
-    await StorageHelper.saveBooks(_books); // Takes List<Book>
+    await StorageHelper.saveBooks(_books);
   }
 
   void _onItemTapped(int index) {
@@ -111,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _books.addAll(newBooks);
     });
     
-    await _saveBooks(); // Save after adding
+    await _saveBooks();
   }
 
   void _openBook(Book book) {
@@ -128,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _books.removeWhere((book) => booksToDelete.contains(book));
     });
     
-    _saveBooks(); // Save after deleting
+    _saveBooks();
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -153,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onBooksDelete: _deleteBooks,
         );
       case 2:
-        return _buildSettingsPage();
+        return _buildSettingsPage(); // This will now use the new SettingsPage
       default:
         return _buildHomePage();
     }
@@ -192,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ElevatedButton(
               onPressed: () {
                 setState(() {
-                  _selectedIndex = 1; // Switch to Library page
+                  _selectedIndex = 1;
                 });
               },
               style: ElevatedButton.styleFrom(
@@ -210,101 +208,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ← REPLACE THIS ENTIRE METHOD
   Widget _buildSettingsPage() {
-    return Container(
-      color: const Color(0xFFFFFFFF),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.settings,
-              size: 64,
-              color: const Color(0xFF3498DB),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Settings',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF2C3E50),
-              ),
-            ),
-            const SizedBox(height: 30),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: Column(
-                children: [
-                  _buildSettingItem(
-                    icon: Icons.palette,
-                    title: 'Theme',
-                    subtitle: 'Dark/Light mode',
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSettingItem(
-                    icon: Icons.storage,
-                    title: 'Storage',
-                    subtitle: '${_books.length} books in library',
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSettingItem(
-                    icon: Icons.info,
-                    title: 'About',
-                    subtitle: 'E-Reader v1.0.0',
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: const Color(0xFF3498DB)),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF2C3E50),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF7F8C8D),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right, color: Color(0xFF7F8C8D)),
-        ],
-      ),
-    );
+    return const SettingsPage(); // Just return the new SettingsPage
   }
 
   @override

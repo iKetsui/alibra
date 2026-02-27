@@ -1,6 +1,6 @@
-import 'package:e_reader/utils/epub_viewer.dart';
 import 'package:flutter/material.dart';
 import 'package:e_reader/utils/pdfviewer.dart';
+import 'package:e_reader/utils/epub_viewer.dart'; // This imports SimpleEpubViewer
 import '../models/book.dart';
 
 class ReaderPage extends StatefulWidget {
@@ -54,11 +54,17 @@ class _ReaderPageState extends State<ReaderPage> {
         onError: _handlePdfError,
       );
     } else if (fileType == 'epub') {
-      // Use the new EPUB viewer
-      return EpubViewerScreen(book: widget.book!);
+      // Use SimpleEpubViewer (not EpubViewerScreen)
+      return SimpleEpubViewer(book: widget.book!);
     } else {
-      // Try to open other file types with PDF viewer
-      return _buildOtherFileType();
+      // For any other file type, try PDF viewer and show error if fails
+      if (_pdfError) {
+        return _buildFileError();
+      }
+      return PDFViewerScreen(
+        filePath: widget.book!.filePath,
+        onError: _handlePdfError,
+      );
     }
   }
 
@@ -81,18 +87,6 @@ class _ReaderPageState extends State<ReaderPage> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildOtherFileType() {
-    if (_pdfError) {
-      return _buildFileError();
-    }
-    
-    // Try to open with PDF viewer
-    return PDFViewerScreen(
-      filePath: widget.book!.filePath,
-      onError: _handlePdfError,
     );
   }
 
@@ -182,7 +176,6 @@ class _ReaderPageState extends State<ReaderPage> {
           const SizedBox(height: 30),
           ElevatedButton.icon(
             onPressed: () {
-              // Go back to library
               Navigator.pop(context);
             },
             icon: const Icon(Icons.arrow_back),
@@ -198,7 +191,6 @@ class _ReaderPageState extends State<ReaderPage> {
           const SizedBox(height: 20),
           TextButton(
             onPressed: () {
-              // Try again
               setState(() {
                 _pdfError = false;
                 _errorMessage = '';
