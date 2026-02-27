@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'models/book.dart';
-import 'utils/file_picker.dart';
+import 'utils/file_handler.dart';
 import 'utils/storage_helper.dart';
 import 'pages/library_page.dart';
 import 'pages/reader_page.dart';
-import 'pages/settings_page.dart'; // ← ADD THIS IMPORT
+import 'pages/settings_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -90,26 +91,261 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _addBooks(List<String> filePaths) async {
-    final newBooks = <Book>[];
-    for (final path in filePaths) {
-      final fileName = path.split('/').last;
-      final fileExtension = fileName.split('.').last.toLowerCase();
-      
-      newBooks.add(Book(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        title: fileName.replaceAll('.pdf', '').replaceAll('.epub', '').replaceAll('_', ' '),
-        filePath: path,
-        fileType: fileExtension,
-        author: 'Unknown Author',
-      ));
-    }
+  // Show add menu when FAB is pressed
+  void _showAddMenu() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Add Books',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2C3E50),
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Pick files option
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3498DB).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.file_present,
+                    color: Color(0xFF3498DB),
+                  ),
+                ),
+                title: const Text(
+                  'Pick Files',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: const Text('Select individual PDF/EPUB files'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickFiles();
+                },
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Pick folder option
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4ECDC4).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.folder_open,
+                    color: Color(0xFF4ECDC4),
+                  ),
+                ),
+                title: const Text(
+                  'Pick Folder',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: const Text('Scan a folder for all PDF/EPUB files'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _pickFolder();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
+  // Method for picking individual files with duplicate check
+  Future<void> _pickFiles() async {
+    final books = await FileHandler.pickBooks();
+    if (books.isNotEmpty) {
+      // Use FileHandler to filter duplicates (checks both path AND name)
+      final newBooks = FileHandler.filterNewBooks(books, _books);
+      
+      if (newBooks.isNotEmpty) {
+        setState(() {
+          _books.addAll(newBooks);
+        });
+        await _saveBooks();
+        
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Added ${newBooks.length} new book(s) '
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('The Selected book is already in library'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+  }
+
+  // Method for picking and scanning a folder with duplicate check
+  Future<void> _pickFolder() async {
+    // Let user pick a folder
+    String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+    
+    if (selectedDirectory == null) {
+      return; // User cancelled
+    }
+    
+    // Show loading dialog
+    if (!context.mounted) return;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+    
+    // Scan the selected folder
+    final foundBooks = await FileHandler.scanFolder(customPath: selectedDirectory);
+    
+    // Close loading dialog
+    if (context.mounted) Navigator.pop(context);
+    
+    if (foundBooks.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No books found in selected folder'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+    
+    // Get duplicate summary for better feedback
+    final summary = FileHandler.getDuplicateSummary(foundBooks, _books);
+    
+    // Filter out books that already exist (by path OR name)
+    final newBooks = FileHandler.filterNewBooks(foundBooks, _books);
+    
+    if (newBooks.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'No new books added - '
+              '${summary['pathDuplicates']} path duplicates, '
+              '${summary['nameDuplicates']} name duplicates'
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+    
+    // Add new books
     setState(() {
       _books.addAll(newBooks);
     });
     
     await _saveBooks();
+    
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Added ${newBooks.length} new books '
+            '(${summary['pathDuplicates']} path duplicates, '
+            '${summary['nameDuplicates']} name duplicates skipped)'
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  // Updated _addBooks method with duplicate check
+  Future<void> _addBooks(List<String> filePaths) async {
+    final newBooks = <Book>[];
+    int duplicateCount = 0;
+    
+    for (final path in filePaths) {
+      final fileName = path.split('/').last;
+      final fileExtension = fileName.split('.').last.toLowerCase();
+      
+      // Check if this file already exists in library (by path OR name)
+      final isDuplicate = _books.any((book) => 
+        book.filePath == path || 
+        book.title.toLowerCase() == fileName.replaceAll('.pdf', '').replaceAll('.epub', '').replaceAll('_', ' ').toLowerCase()
+      );
+      
+      if (!isDuplicate) {
+        newBooks.add(Book(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          title: fileName.replaceAll('.pdf', '').replaceAll('.epub', '').replaceAll('_', ' '),
+          filePath: path,
+          fileType: fileExtension,
+          author: 'Unknown Author',
+        ));
+      } else {
+        duplicateCount++;
+        print('🚫 Skipping duplicate: $fileName');
+      }
+    }
+
+    if (newBooks.isNotEmpty) {
+      setState(() {
+        _books.addAll(newBooks);
+      });
+      await _saveBooks();
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Added ${newBooks.length} new book(s)'
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('The selected book is already in library'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
   }
 
   void _openBook(Book book) {
@@ -151,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onBooksDelete: _deleteBooks,
         );
       case 2:
-        return _buildSettingsPage(); // This will now use the new SettingsPage
+        return _buildSettingsPage();
       default:
         return _buildHomePage();
     }
@@ -208,9 +444,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ← REPLACE THIS ENTIRE METHOD
   Widget _buildSettingsPage() {
-    return const SettingsPage(); // Just return the new SettingsPage
+    return const SettingsPage();
   }
 
   @override
@@ -236,12 +471,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: _buildCurrentPage(),
       floatingActionButton: _selectedIndex == 1
           ? FloatingActionButton(
-              onPressed: () async {
-                final files = await FilePickerHelper.pickBooks();
-                if (files.isNotEmpty) {
-                  _addBooks(files.map((book) => book.filePath).toList());
-                }
-              },
+              onPressed: _showAddMenu,
               backgroundColor: const Color(0xFF3498DB),
               child: const Icon(Icons.add, color: Colors.white),
             )
