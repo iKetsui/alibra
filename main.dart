@@ -46,6 +46,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   List<Book> _books = [];
+  final GlobalKey<LibraryPageState> _libraryKey = GlobalKey<LibraryPageState>();
 
   final List<NavigationItem> _navigationItems = [
     NavigationItem(
@@ -76,6 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadBooks() async {
     final savedBooks = await StorageHelper.loadBooks();
+    print('📚 Loaded ${savedBooks.length} books from storage');
     setState(() {
       _books = savedBooks;
     });
@@ -194,6 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
           SnackBar(
             content: Text(
               'Added ${newBooks.length} new book(s) '
+              '(${books.length - newBooks.length} duplicates skipped)'
             ),
             backgroundColor: Colors.green,
           ),
@@ -202,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('The Selected book is already in library'),
+            content: Text('No new books added - all files are duplicates'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -330,7 +333,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Added ${newBooks.length} new book(s)'
+              'Added ${newBooks.length} new book(s) '
+              '($duplicateCount duplicates skipped)'
             ),
             backgroundColor: Colors.green,
           ),
@@ -340,7 +344,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('The selected book is already in library'),
+            content: Text('No new books added - all files are duplicates'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -382,6 +386,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return _buildHomePage();
       case 1:
         return LibraryPage(
+          key: _libraryKey,
           books: _books,
           onBookSelected: _openBook,
           onBooksDelete: _deleteBooks,
@@ -448,6 +453,34 @@ class _HomeScreenState extends State<HomeScreen> {
     return const SettingsPage();
   }
 
+  // OPTION 4: Always show a placeholder button
+Widget? _getSearchButton() {
+  if (_selectedIndex == 1) {
+    // Always return a button, even if state is not ready yet
+    return IconButton(
+      icon: const Icon(Icons.search),
+      onPressed: () {
+        // Try to get the state and toggle search
+        final libraryState = _libraryKey.currentState;
+        if (libraryState != null) {
+          // Call the toggle method directly instead of through the button
+          libraryState.toggleSearch();
+        } else {
+          print('⚠️ Library state not ready yet - try again');
+          // Optionally show a snackbar
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Search not ready, please try again'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      },
+      color: const Color(0xFF2C3E50),
+    );
+  }
+  return null;
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -467,6 +500,9 @@ class _HomeScreenState extends State<HomeScreen> {
             fontSize: 22,
           ),
         ),
+        actions: [
+          if (_getSearchButton() != null) _getSearchButton()!,
+        ],
       ),
       body: _buildCurrentPage(),
       floatingActionButton: _selectedIndex == 1

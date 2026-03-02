@@ -25,6 +25,7 @@ class DeletionManagerState extends State<DeletionManager> {
   // Add a ValueNotifier to force rebuilds
   final ValueNotifier<int> _rebuildNotifier = ValueNotifier(0);
 
+
   void enterDeleteMode() {
     setState(() {
       _isDeleteMode = true;
