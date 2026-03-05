@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/book.dart';
+import '../utils/tags_manager.dart'; // Updated import
 import '../utils/deletion.dart';
 
 // Make the state class public
@@ -10,31 +11,61 @@ class LibraryPageState extends State<LibraryPage> {
   bool _isSearching = false;
   bool _showSearchBar = false;
   final FocusNode _searchFocusNode = FocusNode();
+  
+  // Tag-related variables
+  List<Tag> _allTags = [];
+  List<String> _selectedTagIds = [];
+  SortOption _currentSortOption = SortOption.title; // Now using SortOption directly
+  bool _sortAscending = true;
+  bool _showTagFilter = false;
+  List<TaggedBook> _taggedBooks = [];
 
-  List<Book> get _filteredBooks {
-    if (_searchQuery.isEmpty) {
-      return widget.books;
+  List<Book> get _filteredAndSortedBooks {
+    // First, convert to TaggedBook for tag filtering
+    List<Book> booksToProcess = _taggedBooks.isEmpty 
+        ? widget.books 
+        : _taggedBooks.cast<Book>();
+    
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      booksToProcess = booksToProcess.where((book) {
+        final titleLower = book.title.toLowerCase();
+        final authorLower = book.author.toLowerCase();
+        final queryLower = _searchQuery.toLowerCase();
+        return titleLower.contains(queryLower) ||
+            authorLower.contains(queryLower) ||
+            book.fileType.toLowerCase().contains(queryLower);
+      }).toList();
     }
-    return widget.books.where((book) {
-      final titleLower = book.title.toLowerCase();
-      final authorLower = book.author.toLowerCase();
-      final queryLower = _searchQuery.toLowerCase();
-      return titleLower.contains(queryLower) ||
-          authorLower.contains(queryLower) ||
-          book.fileType.toLowerCase().contains(queryLower);
-    }).toList();
+    
+    // Apply tag filter (AND logic)
+    if (_selectedTagIds.isNotEmpty) {
+      booksToProcess = booksToProcess.where((book) {
+        if (book is TaggedBook) {
+          return _selectedTagIds.every((tagId) => book.tagIds.contains(tagId));
+        }
+        return false;
+      }).toList();
+    }
+    
+    // Apply sorting - using TagManager.sortBooks
+    return TagManager.sortBooks(booksToProcess, _currentSortOption, ascending: _sortAscending);
   }
 
   @override
   void initState() {
     super.initState();
     print('📚 LibraryPage initialized with ${widget.books.length} books');
+    _loadTags();
   }
 
   @override
   void didUpdateWidget(LibraryPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     print('📚 LibraryPage updated - books: ${widget.books.length}');
+    if (widget.books != oldWidget.books) {
+      _loadTags();
+    }
   }
 
   @override
@@ -42,6 +73,15 @@ class LibraryPageState extends State<LibraryPage> {
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadTags() async {
+    final tags = await TagManager.loadAllTags();
+    final taggedBooks = await TagManager.enrichBooksWithTags(widget.books);
+    setState(() {
+      _allTags = tags;
+      _taggedBooks = taggedBooks.cast<TaggedBook>();
+    });
   }
 
   void _toggleSearch() {
@@ -77,15 +117,219 @@ class LibraryPageState extends State<LibraryPage> {
     );
   }
 
-// Add this public method to LibraryPageState class
+  // Public method to toggle search
   void toggleSearch() {
     _toggleSearch();
   }
 
+  Future<void> _showAddTagDialog(Book book) async {
+    final TextEditingController controller = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Tag'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: 'Enter tag name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_allTags.isNotEmpty) ...[
+              const Text('Or select existing:'),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 100,
+                child: SingleChildScrollView(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _allTags.map((tag) {
+                      return FilterChip(
+                        label: Text(tag.name),
+                        selected: false,
+                        onSelected: (_) async {
+                          Navigator.pop(context);
+                          await TagManager.addTagToBook(book.id, tag.id);
+                          _loadTags();
+                        },
+                        avatar: CircleAvatar(
+                          radius: 4, 
+                          backgroundColor: tag.color,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (controller.text.isNotEmpty) {
+                final newTag = Tag.fromName(controller.text);
+                await TagManager.saveTag(newTag);
+                await TagManager.addTagToBook(book.id, newTag.id);
+                Navigator.pop(context);
+                _loadTags();
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTagFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Filter by Tags',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _allTags.map((tag) {
+                      final isSelected = _selectedTagIds.contains(tag.id);
+                      return FilterChip(
+                        label: Text(tag.name),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setState(() {
+                            if (selected) {
+                              _selectedTagIds.add(tag.id);
+                            } else {
+                              _selectedTagIds.remove(tag.id);
+                            }
+                          });
+                        },
+                        avatar: CircleAvatar(
+                          radius: 4, 
+                          backgroundColor: tag.color,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedTagIds.clear();
+                            });
+                          },
+                          child: const Text('Clear All'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            this.setState(() {});
+                          },
+                          child: const Text('Apply'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showSortOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Sort By',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              ...SortOption.values.map((option) {
+                final isSelected = _currentSortOption == option;
+                return ListTile(
+                  title: Text(option.name.toUpperCase()),
+                  leading: Radio<SortOption>(
+                    value: option,
+                    groupValue: _currentSortOption,
+                    onChanged: (value) {
+                      setState(() {
+                        _currentSortOption = value!;
+                      });
+                      Navigator.pop(context);
+                    },
+                  ),
+                  trailing: isSelected
+                      ? IconButton(
+                          icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
+                          onPressed: () {
+                            setState(() {
+                              _sortAscending = !_sortAscending;
+                            });
+                            Navigator.pop(context);
+                          },
+                        )
+                      : null,
+                );
+              }).toList(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    print(
-        '🎨 Building LibraryPage with ${widget.books.length} books, filtered: ${_filteredBooks.length}');
+    print('🎨 Building LibraryPage with ${widget.books.length} books, filtered: ${_filteredAndSortedBooks.length}');
 
     return DeletionManager(
       books: widget.books,
@@ -135,18 +379,15 @@ class LibraryPageState extends State<LibraryPage> {
                                   });
                                 },
                                 decoration: const InputDecoration(
-                                  hintText:
-                                      'Search by title, author, or format...',
+                                  hintText: 'Search by title, author, or format...',
                                   border: InputBorder.none,
-                                  hintStyle:
-                                      TextStyle(color: Color(0xFF7F8C8D)),
+                                  hintStyle: TextStyle(color: Color(0xFF7F8C8D)),
                                 ),
                               ),
                             ),
                             if (_isSearching)
                               IconButton(
-                                icon: const Icon(Icons.clear,
-                                    color: Color(0xFF7F8C8D)),
+                                icon: const Icon(Icons.clear, color: Color(0xFF7F8C8D)),
                                 onPressed: _clearSearch,
                               ),
                           ],
@@ -158,22 +399,78 @@ class LibraryPageState extends State<LibraryPage> {
 
             const SizedBox(height: 8),
 
+            // Tag filter bar
+            if (_allTags.isNotEmpty)
+              Container(
+                height: 50,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    // Filter button
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: const Text('Filter'),
+                        selected: _selectedTagIds.isNotEmpty,
+                        onSelected: (_) => _showTagFilterSheet(),
+                        avatar: const Icon(Icons.filter_list, size: 16),
+                      ),
+                    ),
+                    // Sort button
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      child: ActionChip(
+                        label: Text(_currentSortOption.name),
+                        onPressed: _showSortOptions,
+                        avatar: Icon(
+                          _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                    // Selected tags
+                    ..._selectedTagIds.map((tagId) {
+                      final tag = _allTags.firstWhere((t) => t.id == tagId);
+                      return Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        child: Chip(
+                          label: Text(tag.name),
+                          onDeleted: () {
+                            setState(() {
+                              _selectedTagIds.remove(tagId);
+                            });
+                          },
+                          backgroundColor: tag.color.withOpacity(0.1),
+                          labelStyle: TextStyle(color: tag.color),
+                          avatar: CircleAvatar(
+                            radius: 4, 
+                            backgroundColor: tag.color,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 8),
+
             // Book grid
             Expanded(
-              child: _filteredBooks.isEmpty
+              child: _filteredAndSortedBooks.isEmpty
                   ? _buildEmptyState()
                   : GridView.builder(
                       padding: const EdgeInsets.all(16),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
                         childAspectRatio: 0.75,
                       ),
-                      itemCount: _filteredBooks.length,
+                      itemCount: _filteredAndSortedBooks.length,
                       itemBuilder: (context, index) {
-                        final book = _filteredBooks[index];
+                        final book = _filteredAndSortedBooks[index];
                         return _buildBookCard(book, context);
                       },
                     ),
@@ -186,8 +483,7 @@ class LibraryPageState extends State<LibraryPage> {
 
   Widget _buildBookCard(Book book, BuildContext context) {
     // Find the DeletionManagerState in the widget tree
-    final deletionState =
-        context.findAncestorStateOfType<DeletionManagerState>();
+    final deletionState = context.findAncestorStateOfType<DeletionManagerState>();
 
     // Wrap with ValueListenableBuilder to rebuild when selection changes
     return ValueListenableBuilder(
@@ -219,8 +515,8 @@ class LibraryPageState extends State<LibraryPage> {
                   border: Border.all(
                     color: isSelected
                         ? const Color.fromRGBO(216, 9, 9, 0.8)
-                        : Color.fromRGBO(bookColor.red, bookColor.green,
-                            bookColor.blue, 0.3),
+                        : Color.fromRGBO(
+                            bookColor.red, bookColor.green, bookColor.blue, 0.3),
                     width: isSelected ? 2.5 : 1,
                   ),
                 ),
@@ -231,8 +527,8 @@ class LibraryPageState extends State<LibraryPage> {
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Color.fromRGBO(bookColor.red, bookColor.green,
-                              bookColor.blue, 0.2),
+                          color: Color.fromRGBO(
+                              bookColor.red, bookColor.green, bookColor.blue, 0.2),
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(12),
                             topRight: Radius.circular(12),
@@ -313,6 +609,54 @@ class LibraryPageState extends State<LibraryPage> {
                               ),
                             ),
                           ],
+                          
+                          // Tags display
+                          if (book is TaggedBook && book.tagIds.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
+                                children: book.tagIds.take(3).map((tagId) {
+                                  final tag = _allTags.firstWhere(
+                                    (t) => t.id == tagId,
+                                    orElse: () => null as Tag,
+                                  );
+                                  if (tag == null) return const SizedBox.shrink();
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: tag.color.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 6,
+                                          height: 6,
+                                          decoration: BoxDecoration(
+                                            color: tag.color,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          tag.name,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: tag.color,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -369,6 +713,34 @@ class LibraryPageState extends State<LibraryPage> {
                     ),
                   ),
                 ),
+
+              // Add tag button (when not in delete mode)
+              if (!isDeleteMode)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () => _showAddTagDialog(book),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.add,
+                        size: 16,
+                        color: Color(0xFF3498DB),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         );
@@ -377,7 +749,7 @@ class LibraryPageState extends State<LibraryPage> {
   }
 
   Widget _buildEmptyState() {
-    if (widget.books.isEmpty && !_isSearching) {
+    if (widget.books.isEmpty && !_isSearching && _selectedTagIds.isEmpty) {
       // No books at all
       return Center(
         child: Column(
@@ -417,8 +789,17 @@ class LibraryPageState extends State<LibraryPage> {
           ],
         ),
       );
-    } else if (_isSearching && _filteredBooks.isEmpty) {
-      // Search with no results
+    } else if (_filteredAndSortedBooks.isEmpty) {
+      // Search or filter with no results
+      String message = '';
+      if (_searchQuery.isNotEmpty && _selectedTagIds.isNotEmpty) {
+        message = 'No books match your search and filters';
+      } else if (_searchQuery.isNotEmpty) {
+        message = 'No books match "$_searchQuery"';
+      } else if (_selectedTagIds.isNotEmpty) {
+        message = 'No books with selected tags';
+      }
+
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -439,20 +820,29 @@ class LibraryPageState extends State<LibraryPage> {
             ),
             const SizedBox(height: 10),
             Text(
-              'No books match "$_searchQuery"',
+              message,
               style: const TextStyle(
                 fontSize: 16,
                 color: Color(0xFF7F8C8D),
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _clearSearch,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3498DB),
+            if (_searchQuery.isNotEmpty || _selectedTagIds.isNotEmpty)
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _searchController.clear();
+                    _searchQuery = '';
+                    _isSearching = false;
+                    _selectedTagIds.clear();
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3498DB),
+                ),
+                child: const Text('Clear All Filters'),
               ),
-              child: const Text('Clear Search'),
-            ),
           ],
         ),
       );
