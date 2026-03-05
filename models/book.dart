@@ -3,7 +3,6 @@ class Book {
   final String title;
   final String filePath;
   final String fileType;
-  final String author;
   final int colorCode;
 
   Book({
@@ -11,7 +10,6 @@ class Book {
     required this.title,
     required this.filePath,
     required this.fileType,
-    this.author = 'Unknown Author',
     int? colorCode,
   }) : colorCode = colorCode ?? _getColorCodeForFileType(fileType);
 
@@ -33,7 +31,6 @@ class Book {
       'title': title,
       'filePath': filePath,
       'fileType': fileType,
-      'author': author,
       'colorCode': colorCode,
     };
   }
@@ -45,7 +42,6 @@ class Book {
       title: map['title'],
       filePath: map['filePath'],
       fileType: map['fileType'],
-      author: map['author'] ?? 'Unknown Author',
       colorCode: map['colorCode'],
     );
   }
@@ -55,7 +51,6 @@ class Book {
     String? title,
     String? filePath,
     String? fileType,
-    String? author,
     int? colorCode,
   }) {
     return Book(
@@ -63,7 +58,6 @@ class Book {
       title: title ?? this.title,
       filePath: filePath ?? this.filePath,
       fileType: fileType ?? this.fileType,
-      author: author ?? this.author,
       colorCode: colorCode ?? this.colorCode,
     );
   }

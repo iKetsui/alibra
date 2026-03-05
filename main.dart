@@ -315,7 +315,6 @@ class _HomeScreenState extends State<HomeScreen> {
           title: fileName.replaceAll('.pdf', '').replaceAll('.epub', '').replaceAll('_', ' '),
           filePath: path,
           fileType: fileExtension,
-          author: 'Unknown Author',
         ));
       } else {
         duplicateCount++;

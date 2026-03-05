@@ -4,48 +4,27 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/book.dart';
 
 // SortOption enum at top level
-enum SortOption { title, dateAdded, author }
+enum SortOption { title, dateAdded }
 
-// Tag model
+// Tag model - WITHOUT colors
 class Tag {
   final String id;
   final String name;
-  final Color color;
   final DateTime createdAt;
 
   Tag({
     required this.id,
     required this.name,
-    required this.color,
     required this.createdAt,
   });
 
-  // Create from name (auto-generates id and color)
+  // Create from name (auto-generates id)
   factory Tag.fromName(String name) {
     return Tag(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: name,
-      color: _generateColor(name),
       createdAt: DateTime.now(),
     );
-  }
-
-  // Generate consistent color from tag name
-  static Color _generateColor(String name) {
-    final colors = [
-      Colors.red,
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.pink,
-      Colors.indigo,
-      Colors.cyan,
-      Colors.amber,
-    ];
-    final index = name.hashCode.abs() % colors.length;
-    return colors[index];
   }
 
   // Convert to Map for storage
@@ -53,7 +32,6 @@ class Tag {
     return {
       'id': id,
       'name': name,
-      'color': color.value,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -63,7 +41,6 @@ class Tag {
     return Tag(
       id: map['id'],
       name: map['name'],
-      color: Color(map['color']),
       createdAt: DateTime.parse(map['createdAt']),
     );
   }
@@ -78,7 +55,6 @@ class TaggedBook extends Book {
     required super.title,
     required super.filePath,
     required super.fileType,
-    super.author,
     super.colorCode,
     this.tagIds = const [],
   });
@@ -98,7 +74,6 @@ class TaggedBook extends Book {
       title: map['title'],
       filePath: map['filePath'],
       fileType: map['fileType'],
-      author: map['author'] ?? 'Unknown Author',
       colorCode: map['colorCode'],
       tagIds: List<String>.from(map['tagIds'] ?? []),
     );
@@ -111,7 +86,6 @@ class TaggedBook extends Book {
       title: book.title,
       filePath: book.filePath,
       fileType: book.fileType,
-      author: book.author,
       colorCode: book.colorCode,
       tagIds: tagIds,
     );
@@ -274,9 +248,6 @@ class TagManager {
     switch (option) {
       case SortOption.title:
         sorted.sort((a, b) => a.title.compareTo(b.title));
-        break;
-      case SortOption.author:
-        sorted.sort((a, b) => a.author.compareTo(b.author));
         break;
       case SortOption.dateAdded:
         // Assuming id contains timestamp (milliseconds)

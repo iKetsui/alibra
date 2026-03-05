@@ -113,7 +113,6 @@ class FileHandler {
       title: title,
       filePath: filePath,
       fileType: fileExtension,
-      author: 'Unknown Author',
     );
   }
 

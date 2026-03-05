@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/book.dart';
-import 'tags_manager.dart'; // Add this import
+import 'tags_manager.dart';
 
 class StorageHelper {
   static const String _booksKey = 'library_books';
@@ -21,7 +21,6 @@ class StorageHelper {
           'title': book.title,
           'path': book.filePath,
           'type': book.fileType,
-          'author': book.author,
           'tagIds': book.tagIds,
         };
       } else {
@@ -30,7 +29,6 @@ class StorageHelper {
           'title': book.title,
           'path': book.filePath,
           'type': book.fileType,
-          'author': book.author,
         };
       }
     }).toList();
@@ -57,7 +55,6 @@ class StorageHelper {
             title: item['title'] as String,
             filePath: item['path'] as String,
             fileType: item['type'] as String,
-            author: item['author'] as String? ?? 'Unknown Author',
             tagIds: List<String>.from(item['tagIds'] ?? []),
           );
         } else {
@@ -66,7 +63,6 @@ class StorageHelper {
             title: item['title'] as String,
             filePath: item['path'] as String,
             fileType: item['type'] as String,
-            author: item['author'] as String? ?? 'Unknown Author',
           );
         }
       }).toList();

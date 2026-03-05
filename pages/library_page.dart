@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/book.dart';
-import '../utils/tags_manager.dart'; // Updated import
+import '../utils/tags_manager.dart';
 import '../utils/deletion.dart';
 
 // Make the state class public
@@ -15,9 +15,8 @@ class LibraryPageState extends State<LibraryPage> {
   // Tag-related variables
   List<Tag> _allTags = [];
   List<String> _selectedTagIds = [];
-  SortOption _currentSortOption = SortOption.title; // Now using SortOption directly
+  SortOption _currentSortOption = SortOption.title;
   bool _sortAscending = true;
-  bool _showTagFilter = false;
   List<TaggedBook> _taggedBooks = [];
 
   List<Book> get _filteredAndSortedBooks {
@@ -30,10 +29,8 @@ class LibraryPageState extends State<LibraryPage> {
     if (_searchQuery.isNotEmpty) {
       booksToProcess = booksToProcess.where((book) {
         final titleLower = book.title.toLowerCase();
-        final authorLower = book.author.toLowerCase();
         final queryLower = _searchQuery.toLowerCase();
         return titleLower.contains(queryLower) ||
-            authorLower.contains(queryLower) ||
             book.fileType.toLowerCase().contains(queryLower);
       }).toList();
     }
@@ -48,7 +45,7 @@ class LibraryPageState extends State<LibraryPage> {
       }).toList();
     }
     
-    // Apply sorting - using TagManager.sortBooks
+    // Apply sorting
     return TagManager.sortBooks(booksToProcess, _currentSortOption, ascending: _sortAscending);
   }
 
@@ -92,7 +89,6 @@ class LibraryPageState extends State<LibraryPage> {
         _searchQuery = '';
         _isSearching = false;
       } else {
-        // Focus the search field when it appears
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _searchFocusNode.requestFocus();
         });
@@ -157,11 +153,19 @@ class LibraryPageState extends State<LibraryPage> {
                           Navigator.pop(context);
                           await TagManager.addTagToBook(book.id, tag.id);
                           _loadTags();
+                          // Automatically filter by this tag
+                          setState(() {
+                            if (!_selectedTagIds.contains(tag.id)) {
+                              _selectedTagIds.add(tag.id);
+                            }
+                          });
                         },
-                        avatar: CircleAvatar(
-                          radius: 4, 
-                          backgroundColor: tag.color,
+                        side: BorderSide(
+                          color: Colors.grey.shade400,
+                          width: 1,
                         ),
+                        backgroundColor: Colors.transparent,
+                        selectedColor: Colors.blue.shade50,
                       );
                     }).toList(),
                   ),
@@ -183,6 +187,12 @@ class LibraryPageState extends State<LibraryPage> {
                 await TagManager.addTagToBook(book.id, newTag.id);
                 Navigator.pop(context);
                 _loadTags();
+                // Automatically filter by this new tag
+                setState(() {
+                  if (!_selectedTagIds.contains(newTag.id)) {
+                    _selectedTagIds.add(newTag.id);
+                  }
+                });
               }
             },
             child: const Text('Add'),
@@ -190,6 +200,16 @@ class LibraryPageState extends State<LibraryPage> {
         ],
       ),
     );
+  }
+
+  void _toggleTagFilter(String tagId) {
+    setState(() {
+      if (_selectedTagIds.contains(tagId)) {
+        _selectedTagIds.remove(tagId);
+      } else {
+        _selectedTagIds.add(tagId);
+      }
+    });
   }
 
   void _showTagFilterSheet() {
@@ -232,10 +252,12 @@ class LibraryPageState extends State<LibraryPage> {
                             }
                           });
                         },
-                        avatar: CircleAvatar(
-                          radius: 4, 
-                          backgroundColor: tag.color,
+                        side: BorderSide(
+                          color: isSelected ? Colors.blue : Colors.grey.shade400,
+                          width: 1.5,
                         ),
+                        backgroundColor: Colors.transparent,
+                        selectedColor: Colors.blue.shade50,
                       );
                     }).toList(),
                   ),
@@ -379,7 +401,7 @@ class LibraryPageState extends State<LibraryPage> {
                                   });
                                 },
                                 decoration: const InputDecoration(
-                                  hintText: 'Search by title, author, or format...',
+                                  hintText: 'Search by title or format...',
                                   border: InputBorder.none,
                                   hintStyle: TextStyle(color: Color(0xFF7F8C8D)),
                                 ),
@@ -399,7 +421,7 @@ class LibraryPageState extends State<LibraryPage> {
 
             const SizedBox(height: 8),
 
-            // Tag filter bar
+            // Filter bar
             if (_allTags.isNotEmpty)
               Container(
                 height: 50,
@@ -415,6 +437,12 @@ class LibraryPageState extends State<LibraryPage> {
                         selected: _selectedTagIds.isNotEmpty,
                         onSelected: (_) => _showTagFilterSheet(),
                         avatar: const Icon(Icons.filter_list, size: 16),
+                        side: BorderSide(
+                          color: _selectedTagIds.isNotEmpty ? Colors.blue : Colors.grey.shade400,
+                          width: 1.5,
+                        ),
+                        backgroundColor: Colors.transparent,
+                        selectedColor: Colors.blue.shade50,
                       ),
                     ),
                     // Sort button
@@ -427,6 +455,8 @@ class LibraryPageState extends State<LibraryPage> {
                           _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
                           size: 16,
                         ),
+                        side: BorderSide(color: Colors.grey.shade400, width: 1),
+                        backgroundColor: Colors.transparent,
                       ),
                     ),
                     // Selected tags
@@ -441,12 +471,9 @@ class LibraryPageState extends State<LibraryPage> {
                               _selectedTagIds.remove(tagId);
                             });
                           },
-                          backgroundColor: tag.color.withOpacity(0.1),
-                          labelStyle: TextStyle(color: tag.color),
-                          avatar: CircleAvatar(
-                            radius: 4, 
-                            backgroundColor: tag.color,
-                          ),
+                          side: BorderSide(color: Colors.blue, width: 1.5),
+                          backgroundColor: Colors.blue.shade50,
+                          labelStyle: const TextStyle(color: Colors.blue),
                         ),
                       );
                     }).toList(),
@@ -596,65 +623,62 @@ class LibraryPageState extends State<LibraryPage> {
                               ),
                             ],
                           ),
-                          if (book.author.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              book.author,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF7F8C8D),
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
                           
-                          // Tags display
-                          if (book is TaggedBook && book.tagIds.isNotEmpty)
+                          // Tags row at bottom - horizontal scrollable
+                          if (book is TaggedBook)
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
-                              child: Wrap(
-                                spacing: 4,
-                                runSpacing: 4,
-                                children: book.tagIds.take(3).map((tagId) {
-                                  final tag = _allTags.firstWhere(
-                                    (t) => t.id == tagId,
-                                    orElse: () => null as Tag,
-                                  );
-                                  if (tag == null) return const SizedBox.shrink();
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: tag.color.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          width: 6,
-                                          height: 6,
-                                          decoration: BoxDecoration(
-                                            color: tag.color,
-                                            shape: BoxShape.circle,
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: [
+                                    // Existing tags
+                                    ...book.tagIds.map((tagId) {
+                                      final tag = _allTags.firstWhere(
+                                        (t) => t.id == tagId,
+                                        orElse: () => Tag.fromName(''), // Fallback empty tag
+                                      );
+                                      final isTagSelected = _selectedTagIds.contains(tag.id);
+                                      return Container(
+                                        margin: const EdgeInsets.only(right: 6),
+                                        child: FilterChip(
+                                          label: Text(tag.name),
+                                          selected: isTagSelected,
+                                          onSelected: (_) {
+                                            _toggleTagFilter(tag.id);
+                                          },
+                                          side: BorderSide(
+                                            color: isTagSelected ? Colors.blue : Colors.grey.shade400,
+                                            width: 1.5,
                                           ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          tag.name,
-                                          style: TextStyle(
+                                          backgroundColor: Colors.transparent,
+                                          selectedColor: Colors.blue.shade50,
+                                          labelStyle: TextStyle(
                                             fontSize: 10,
-                                            color: tag.color,
+                                            color: isTagSelected ? Colors.blue : Colors.black87,
+                                            fontWeight: isTagSelected ? FontWeight.bold : FontWeight.normal,
                                           ),
+                                          visualDensity: VisualDensity.compact,
+                                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                         ),
-                                      ],
+                                      );
+                                    }).toList(),
+                                    
+                                    // Add tag button
+                                    Container(
+                                      margin: const EdgeInsets.only(right: 4),
+                                      child: ActionChip(
+                                        label: const Icon(Icons.add, size: 14),
+                                        onPressed: () => _showAddTagDialog(book),
+                                        side: BorderSide(color: Colors.grey.shade400, width: 1),
+                                        backgroundColor: Colors.transparent,
+                                        padding: const EdgeInsets.all(4),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
                                     ),
-                                  );
-                                }).toList(),
+                                  ],
+                                ),
                               ),
                             ),
                         ],
@@ -710,34 +734,6 @@ class LibraryPageState extends State<LibraryPage> {
                       Icons.delete,
                       size: 16,
                       color: Colors.white,
-                    ),
-                  ),
-                ),
-
-              // Add tag button (when not in delete mode)
-              if (!isDeleteMode)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: GestureDetector(
-                    onTap: () => _showAddTagDialog(book),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        size: 16,
-                        color: Color(0xFF3498DB),
-                      ),
                     ),
                   ),
                 ),
