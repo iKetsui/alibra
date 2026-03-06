@@ -13,7 +13,7 @@ class LibraryPageState extends State<LibraryPage> {
   bool _isSearching = false;
   bool _showSearchBar = false;
   final FocusNode _searchFocusNode = FocusNode();
-  
+
   // Tag-related variables
   List<Tag> _allTags = [];
   List<String> _selectedTagIds = [];
@@ -23,10 +23,9 @@ class LibraryPageState extends State<LibraryPage> {
 
   List<Book> get _filteredAndSortedBooks {
     // First, convert to TaggedBook for tag filtering
-    List<Book> booksToProcess = _taggedBooks.isEmpty 
-        ? widget.books 
-        : _taggedBooks.cast<Book>();
-    
+    List<Book> booksToProcess =
+        _taggedBooks.isEmpty ? widget.books : _taggedBooks.cast<Book>();
+
     // Apply search filter
     if (_searchQuery.isNotEmpty) {
       booksToProcess = booksToProcess.where((book) {
@@ -36,7 +35,7 @@ class LibraryPageState extends State<LibraryPage> {
             book.fileType.toLowerCase().contains(queryLower);
       }).toList();
     }
-    
+
     // Apply tag filter (AND logic)
     if (_selectedTagIds.isNotEmpty) {
       booksToProcess = booksToProcess.where((book) {
@@ -46,9 +45,10 @@ class LibraryPageState extends State<LibraryPage> {
         return false;
       }).toList();
     }
-    
+
     // Apply sorting
-    return TagManager.sortBooks(booksToProcess, _currentSortOption, ascending: _sortAscending);
+    return TagManager.sortBooks(booksToProcess, _currentSortOption,
+        ascending: _sortAscending);
   }
 
   @override
@@ -108,8 +108,9 @@ class LibraryPageState extends State<LibraryPage> {
 
   // Public method to get the search button
   Widget getSearchButton() {
-    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
-    
+    final theme =
+        Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+
     return IconButton(
       icon: Icon(_showSearchBar ? Icons.close : Icons.search),
       onPressed: _toggleSearch,
@@ -124,11 +125,12 @@ class LibraryPageState extends State<LibraryPage> {
 
   Future<void> _showAddTagDialog(Book book) async {
     final TextEditingController controller = TextEditingController();
-    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
-    
+    final theme =
+        Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+
     // Get current tags for this book - refresh every time dialog opens
     await _loadTags(); // Ensure tags are up to date
-    
+
     showDialog(
       context: context,
       builder: (context) {
@@ -140,7 +142,7 @@ class LibraryPageState extends State<LibraryPage> {
               orElse: () => TaggedBook.fromBook(book),
             );
             final currentBookTags = currentBook.tagIds;
-            
+
             return AlertDialog(
               title: Text('Manage Tags', style: TextStyle(color: theme.text)),
               content: Column(
@@ -165,9 +167,9 @@ class LibraryPageState extends State<LibraryPage> {
                       }
                     },
                   ),
-                  
+
                   const SizedBox(height: 20),
-                  
+
                   // Existing tags section
                   if (_allTags.isNotEmpty) ...[
                     const Text(
@@ -185,30 +187,39 @@ class LibraryPageState extends State<LibraryPage> {
                           spacing: 8,
                           runSpacing: 8,
                           children: _allTags.map((tag) {
-                            final isTagActive = currentBookTags.contains(tag.id);
-                            
+                            final isTagActive =
+                                currentBookTags.contains(tag.id);
+
                             return FilterChip(
                               label: Text(
                                 tag.name,
                                 style: TextStyle(
-                                  fontWeight: isTagActive ? FontWeight.bold : FontWeight.normal,
+                                  fontWeight: isTagActive
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
                                 ),
                               ),
                               selected: isTagActive,
                               onSelected: (selected) async {
                                 if (selected) {
-                                  await TagManager.addTagToBook(book.id, tag.id);
+                                  await TagManager.addTagToBook(
+                                      book.id, tag.id);
                                 } else {
-                                  await TagManager.removeTagFromBook(book.id, tag.id);
+                                  await TagManager.removeTagFromBook(
+                                      book.id, tag.id);
                                 }
                                 await _loadTags(); // Reload all tags
                                 setDialogState(() {}); // Update dialog UI
                               },
                               side: BorderSide(
-                                color: isTagActive ? theme.primary : Colors.grey.shade400,
+                                color: isTagActive
+                                    ? theme.primary
+                                    : Colors.grey.shade400,
                                 width: 1.5,
                               ),
-                              backgroundColor: isTagActive ? theme.primary.withOpacity(0.1) : Colors.grey.shade100,
+                              backgroundColor: isTagActive
+                                  ? theme.primary.withOpacity(0.1)
+                                  : Colors.grey.shade100,
                               selectedColor: Colors.transparent,
                               showCheckmark: false,
                               shape: const StadiumBorder(),
@@ -244,8 +255,9 @@ class LibraryPageState extends State<LibraryPage> {
   }
 
   void _showTagFilterSheet() {
-    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
-    
+    final theme =
+        Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -281,6 +293,7 @@ class LibraryPageState extends State<LibraryPage> {
                         ),
                         selected: isSelected,
                         onSelected: (selected) {
+                          // Instant filter update
                           setState(() {
                             if (selected) {
                               _selectedTagIds.add(tag.id);
@@ -288,9 +301,12 @@ class LibraryPageState extends State<LibraryPage> {
                               _selectedTagIds.remove(tag.id);
                             }
                           });
+                          // Update the main page state immediately
+                          this.setState(() {});
                         },
                         side: BorderSide(
-                          color: isSelected ? theme.primary : Colors.grey.shade400,
+                          color:
+                              isSelected ? theme.primary : Colors.grey.shade400,
                           width: 1.5,
                         ),
                         backgroundColor: Colors.transparent,
@@ -302,29 +318,18 @@ class LibraryPageState extends State<LibraryPage> {
                   ),
                   const SizedBox(height: 20),
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _selectedTagIds.clear();
-                            });
-                          },
-                          child: Text('Clear All', style: TextStyle(color: theme.primary)),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            this.setState(() {});
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.primary,
-                          ),
-                          child: const Text('Apply', style: TextStyle(color: Colors.white)),
-                        ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _selectedTagIds.clear();
+                          });
+                          // Update the main page state immediately
+                          this.setState(() {});
+                        },
+                        child: Text('Clear All',
+                            style: TextStyle(color: theme.primary)),
                       ),
                     ],
                   ),
@@ -338,8 +343,9 @@ class LibraryPageState extends State<LibraryPage> {
   }
 
   void _showSortOptions() {
-    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
-    
+    final theme =
+        Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -378,7 +384,9 @@ class LibraryPageState extends State<LibraryPage> {
                   trailing: isSelected
                       ? IconButton(
                           icon: Icon(
-                            _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                            _sortAscending
+                                ? Icons.arrow_upward
+                                : Icons.arrow_downward,
                             color: theme.primary,
                           ),
                           onPressed: () {
@@ -401,8 +409,9 @@ class LibraryPageState extends State<LibraryPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context).currentTheme;
-    
-    print('🎨 Building LibraryPage with ${widget.books.length} books, filtered: ${_filteredAndSortedBooks.length}');
+
+    print(
+        '🎨 Building LibraryPage with ${widget.books.length} books, filtered: ${_filteredAndSortedBooks.length}');
 
     return DeletionManager(
       books: widget.books,
@@ -454,14 +463,16 @@ class LibraryPageState extends State<LibraryPage> {
                                 decoration: InputDecoration(
                                   hintText: 'Search by title or format...',
                                   border: InputBorder.none,
-                                  hintStyle: TextStyle(color: theme.secondaryText),
+                                  hintStyle:
+                                      TextStyle(color: theme.secondaryText),
                                 ),
                                 style: TextStyle(color: theme.text),
                               ),
                             ),
                             if (_isSearching)
                               IconButton(
-                                icon: Icon(Icons.clear, color: theme.secondaryText),
+                                icon: Icon(Icons.clear,
+                                    color: theme.secondaryText),
                                 onPressed: _clearSearch,
                               ),
                           ],
@@ -491,9 +502,12 @@ class LibraryPageState extends State<LibraryPage> {
                         ),
                         selected: _selectedTagIds.isNotEmpty,
                         onSelected: (_) => _showTagFilterSheet(),
-                        avatar: Icon(Icons.filter_list, size: 16, color: theme.primary),
+                        avatar: Icon(Icons.filter_list,
+                            size: 16, color: theme.primary),
                         side: BorderSide(
-                          color: _selectedTagIds.isNotEmpty ? theme.primary : Colors.grey.shade400,
+                          color: _selectedTagIds.isNotEmpty
+                              ? theme.primary
+                              : Colors.grey.shade400,
                           width: 1.5,
                         ),
                         backgroundColor: Colors.transparent,
@@ -512,7 +526,9 @@ class LibraryPageState extends State<LibraryPage> {
                         ),
                         onPressed: _showSortOptions,
                         avatar: Icon(
-                          _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                          _sortAscending
+                              ? Icons.arrow_upward
+                              : Icons.arrow_downward,
                           size: 16,
                           color: theme.primary,
                         ),
@@ -544,7 +560,8 @@ class LibraryPageState extends State<LibraryPage> {
                           backgroundColor: theme.primary.withOpacity(0.1),
                           deleteIconColor: theme.primary,
                           deleteIcon: const Icon(Icons.close, size: 14),
-                          labelPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          labelPadding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
                           visualDensity: VisualDensity.compact,
                           shape: const StadiumBorder(),
                         ),
@@ -564,12 +581,13 @@ class LibraryPageState extends State<LibraryPage> {
                   final cardWidth = (constraints.maxWidth - 32 - 16) / 2;
                   // Fixed height that works for all cards
                   const cardHeight = 280.0;
-                  
+
                   return _filteredAndSortedBooks.isEmpty
                       ? _buildEmptyState()
                       : GridView.builder(
                           padding: const EdgeInsets.all(12),
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
                             crossAxisSpacing: 8,
                             mainAxisSpacing: 8,
@@ -592,7 +610,8 @@ class LibraryPageState extends State<LibraryPage> {
 
   Widget _buildBookCard(Book book, BuildContext context) {
     // Find the DeletionManagerState in the widget tree
-    final deletionState = context.findAncestorStateOfType<DeletionManagerState>();
+    final deletionState =
+        context.findAncestorStateOfType<DeletionManagerState>();
     final theme = Provider.of<ThemeProvider>(context).currentTheme;
 
     // Wrap with ValueListenableBuilder to rebuild when selection changes
@@ -627,8 +646,8 @@ class LibraryPageState extends State<LibraryPage> {
                   border: Border.all(
                     color: isSelected
                         ? const Color.fromRGBO(216, 9, 9, 0.8)
-                        : Color.fromRGBO(
-                            bookColor.red, bookColor.green, bookColor.blue, 0.3),
+                        : Color.fromRGBO(bookColor.red, bookColor.green,
+                            bookColor.blue, 0.3),
                     width: isSelected ? 2.5 : 1,
                   ),
                 ),
@@ -641,8 +660,8 @@ class LibraryPageState extends State<LibraryPage> {
                       height: 120,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Color.fromRGBO(
-                              bookColor.red, bookColor.green, bookColor.blue, 0.2),
+                          color: Color.fromRGBO(bookColor.red, bookColor.green,
+                              bookColor.blue, 0.2),
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(12),
                             topRight: Radius.circular(12),
@@ -671,7 +690,7 @@ class LibraryPageState extends State<LibraryPage> {
                         ),
                       ),
                     ),
-                    
+
                     // Book info area - COMPACT SPACING
                     Container(
                       padding: const EdgeInsets.all(6),
@@ -691,7 +710,7 @@ class LibraryPageState extends State<LibraryPage> {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          
+
                           // File type indicator
                           Row(
                             children: [
@@ -715,9 +734,9 @@ class LibraryPageState extends State<LibraryPage> {
                               ),
                             ],
                           ),
-                          
+
                           const SizedBox(height: 4),
-                          
+
                           // Tags section - ALWAYS SHOW (with or without tags)
                           if (book is TaggedBook)
                             _buildTagsSection(book, bookColor, theme)
@@ -821,9 +840,10 @@ class LibraryPageState extends State<LibraryPage> {
   }
 
   // Helper method to build tags section with dynamic display
-  Widget _buildTagsSection(TaggedBook book, Color bookColor, AppThemeColors theme) {
+  Widget _buildTagsSection(
+      TaggedBook book, Color bookColor, AppThemeColors theme) {
     final int totalTags = book.tagIds.length;
-    
+
     // Determine display mode based on tag count
     if (totalTags < 4) {
       // Mode 1: Show all tags
@@ -842,7 +862,7 @@ class LibraryPageState extends State<LibraryPage> {
                   orElse: () => Tag.fromName(''),
                 );
                 final isTagSelected = _selectedTagIds.contains(tag.id);
-                
+
                 return FilterChip(
                   label: Text(
                     tag.name,
@@ -864,12 +884,14 @@ class LibraryPageState extends State<LibraryPage> {
                   showCheckmark: false,
                   visualDensity: VisualDensity.compact,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                  labelPadding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   shape: const StadiumBorder(),
                 );
               }).toList(),
-              
+
               // Add tag button
               Material(
                 borderRadius: BorderRadius.circular(16),
@@ -915,7 +937,7 @@ class LibraryPageState extends State<LibraryPage> {
                   orElse: () => Tag.fromName(''),
                 );
                 final isTagSelected = _selectedTagIds.contains(tag.id);
-                
+
                 return FilterChip(
                   label: Text(
                     tag.name,
@@ -937,12 +959,14 @@ class LibraryPageState extends State<LibraryPage> {
                   showCheckmark: false,
                   visualDensity: VisualDensity.compact,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                  labelPadding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   shape: const StadiumBorder(),
                 );
               }).toList(),
-              
+
               // +X more chip
               if (totalTags > 3)
                 FilterChip(
@@ -961,11 +985,13 @@ class LibraryPageState extends State<LibraryPage> {
                   showCheckmark: false,
                   visualDensity: VisualDensity.compact,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                  labelPadding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   shape: const StadiumBorder(),
                 ),
-              
+
               // Add tag button
               Material(
                 borderRadius: BorderRadius.circular(16),
@@ -991,7 +1017,7 @@ class LibraryPageState extends State<LibraryPage> {
               ),
             ],
           ),
-          
+
           // "See all tags" link for large collections
           if (totalTags > 8)
             Align(
@@ -999,7 +1025,8 @@ class LibraryPageState extends State<LibraryPage> {
               child: TextButton(
                 onPressed: () => _showAllTagsDialog(book),
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
@@ -1019,8 +1046,9 @@ class LibraryPageState extends State<LibraryPage> {
 
   // Dialog to show all tags for a book
   void _showAllTagsDialog(TaggedBook book) {
-    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
-    
+    final theme =
+        Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1046,7 +1074,6 @@ class LibraryPageState extends State<LibraryPage> {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 16),
-              
               Expanded(
                 child: SingleChildScrollView(
                   child: Wrap(
@@ -1058,7 +1085,7 @@ class LibraryPageState extends State<LibraryPage> {
                         orElse: () => Tag.fromName(''),
                       );
                       final isTagSelected = _selectedTagIds.contains(tag.id);
-                      
+
                       return FilterChip(
                         label: Text(tag.name),
                         selected: isTagSelected,
@@ -1067,7 +1094,9 @@ class LibraryPageState extends State<LibraryPage> {
                           Navigator.pop(context);
                         },
                         side: BorderSide(
-                          color: isTagSelected ? theme.primary : Colors.grey.shade400,
+                          color: isTagSelected
+                              ? theme.primary
+                              : Colors.grey.shade400,
                           width: 1.2,
                         ),
                         backgroundColor: Colors.transparent,
@@ -1093,7 +1122,7 @@ class LibraryPageState extends State<LibraryPage> {
 
   Widget _buildEmptyState() {
     final theme = Provider.of<ThemeProvider>(context).currentTheme;
-    
+
     if (widget.books.isEmpty && !_isSearching && _selectedTagIds.isEmpty) {
       return Center(
         child: Column(
@@ -1184,7 +1213,8 @@ class LibraryPageState extends State<LibraryPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: theme.primary,
                 ),
-                child: const Text('Clear All Filters', style: TextStyle(color: Colors.white)),
+                child: const Text('Clear All Filters',
+                    style: TextStyle(color: Colors.white)),
               ),
           ],
         ),
