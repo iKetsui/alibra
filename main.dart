@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'models/book.dart';
 import 'utils/file_handler.dart';
 import 'utils/storage_helper.dart';
+import 'utils/theme_provider.dart';
 import 'pages/library_page.dart';
 import 'pages/reader_page.dart';
 import 'pages/settings_page.dart';
 
 void main() {
+  WidgetsFlutterBinding
+      .ensureInitialized(); // Required for async initialization
   runApp(const MyApp());
 }
 
@@ -16,22 +20,32 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'E-Reader',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF3498DB),
-          brightness: Brightness.light,
-        ),
-        scaffoldBackgroundColor: const Color(0xFFFFFFFF),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFF8F9FA),
-          elevation: 0,
-        ),
-        useMaterial3: true,
+    return ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          final theme = themeProvider.currentTheme;
+
+          return MaterialApp(
+            title: 'E-Reader',
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: theme.primary,
+                brightness: Brightness.light,
+              ),
+              scaffoldBackgroundColor: theme.background,
+              appBarTheme: AppBarTheme(
+                backgroundColor: theme.appBar,
+                elevation: 0,
+                foregroundColor: theme.text,
+              ),
+              useMaterial3: true,
+            ),
+            home: const HomeScreen(),
+          );
+        },
       ),
-      home: const HomeScreen(),
     );
   }
 }
@@ -48,26 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Book> _books = [];
   final GlobalKey<LibraryPageState> _libraryKey = GlobalKey<LibraryPageState>();
 
-  final List<NavigationItem> _navigationItems = [
-    NavigationItem(
-      icon: Icons.home,
-      label: 'Home',
-      color: const Color(0xFF3498DB).withOpacity(0.1),
-      activeColor: const Color(0xFF3498DB),
-    ),
-    NavigationItem(
-      icon: Icons.library_books,
-      label: 'Library',
-      color: const Color(0xFF3498DB).withOpacity(0.1),
-      activeColor: const Color(0xFF3498DB),
-    ),
-    NavigationItem(
-      icon: Icons.settings,
-      label: 'Settings',
-      color: const Color(0xFF3498DB).withOpacity(0.1),
-      activeColor: const Color(0xFF3498DB),
-    ),
-  ];
+  late List<NavigationItem> _navigationItems;
 
   @override
   void initState() {
@@ -95,6 +90,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Show add menu when FAB is pressed
   void _showAddMenu() {
+    final theme =
+        Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -106,34 +104,35 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 'Add Books',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF2C3E50),
+                  color: theme.text,
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // Pick files option
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF3498DB).withOpacity(0.1),
+                    color: theme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.file_present,
-                    color: Color(0xFF3498DB),
+                    color: theme.primary,
                   ),
                 ),
-                title: const Text(
+                title: Text(
                   'Pick Files',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
+                    color: theme.text,
                   ),
                 ),
                 subtitle: const Text('Select individual PDF/EPUB files'),
@@ -142,9 +141,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   _pickFiles();
                 },
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               // Pick folder option
               ListTile(
                 leading: Container(
@@ -184,20 +183,18 @@ class _HomeScreenState extends State<HomeScreen> {
     if (books.isNotEmpty) {
       // Use FileHandler to filter duplicates (checks both path AND name)
       final newBooks = FileHandler.filterNewBooks(books, _books);
-      
+
       if (newBooks.isNotEmpty) {
         setState(() {
           _books.addAll(newBooks);
         });
         await _saveBooks();
-        
+
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Added ${newBooks.length} new book(s) '
-              '(${books.length - newBooks.length} duplicates skipped)'
-            ),
+            content: Text('Added ${newBooks.length} new book(s) '
+                '(${books.length - newBooks.length} duplicates skipped)'),
             backgroundColor: Colors.green,
           ),
         );
@@ -217,14 +214,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _pickFolder() async {
     // Let user pick a folder
     String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-    
+
     if (selectedDirectory == null) {
       return; // User cancelled
     }
-    
+
     // Show loading dialog
     if (!context.mounted) return;
-    
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -232,13 +229,14 @@ class _HomeScreenState extends State<HomeScreen> {
         child: CircularProgressIndicator(),
       ),
     );
-    
+
     // Scan the selected folder
-    final foundBooks = await FileHandler.scanFolder(customPath: selectedDirectory);
-    
+    final foundBooks =
+        await FileHandler.scanFolder(customPath: selectedDirectory);
+
     // Close loading dialog
     if (context.mounted) Navigator.pop(context);
-    
+
     if (foundBooks.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -250,44 +248,40 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       return;
     }
-    
+
     // Get duplicate summary for better feedback
     final summary = FileHandler.getDuplicateSummary(foundBooks, _books);
-    
+
     // Filter out books that already exist (by path OR name)
     final newBooks = FileHandler.filterNewBooks(foundBooks, _books);
-    
+
     if (newBooks.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'No new books added - '
-              '${summary['pathDuplicates']} path duplicates, '
-              '${summary['nameDuplicates']} name duplicates'
-            ),
+            content: Text('No new books added - '
+                '${summary['pathDuplicates']} path duplicates, '
+                '${summary['nameDuplicates']} name duplicates'),
             backgroundColor: Colors.orange,
           ),
         );
       }
       return;
     }
-    
+
     // Add new books
     setState(() {
       _books.addAll(newBooks);
     });
-    
+
     await _saveBooks();
-    
+
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Added ${newBooks.length} new books '
-            '(${summary['pathDuplicates']} path duplicates, '
-            '${summary['nameDuplicates']} name duplicates skipped)'
-          ),
+          content: Text('Added ${newBooks.length} new books '
+              '(${summary['pathDuplicates']} path duplicates, '
+              '${summary['nameDuplicates']} name duplicates skipped)'),
           backgroundColor: Colors.green,
         ),
       );
@@ -298,21 +292,28 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _addBooks(List<String> filePaths) async {
     final newBooks = <Book>[];
     int duplicateCount = 0;
-    
+
     for (final path in filePaths) {
       final fileName = path.split('/').last;
       final fileExtension = fileName.split('.').last.toLowerCase();
-      
+
       // Check if this file already exists in library (by path OR name)
-      final isDuplicate = _books.any((book) => 
-        book.filePath == path || 
-        book.title.toLowerCase() == fileName.replaceAll('.pdf', '').replaceAll('.epub', '').replaceAll('_', ' ').toLowerCase()
-      );
-      
+      final isDuplicate = _books.any((book) =>
+          book.filePath == path ||
+          book.title.toLowerCase() ==
+              fileName
+                  .replaceAll('.pdf', '')
+                  .replaceAll('.epub', '')
+                  .replaceAll('_', ' ')
+                  .toLowerCase());
+
       if (!isDuplicate) {
         newBooks.add(Book(
           id: DateTime.now().microsecondsSinceEpoch.toString(),
-          title: fileName.replaceAll('.pdf', '').replaceAll('.epub', '').replaceAll('_', ' '),
+          title: fileName
+              .replaceAll('.pdf', '')
+              .replaceAll('.epub', '')
+              .replaceAll('_', ' '),
           filePath: path,
           fileType: fileExtension,
         ));
@@ -327,14 +328,12 @@ class _HomeScreenState extends State<HomeScreen> {
         _books.addAll(newBooks);
       });
       await _saveBooks();
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Added ${newBooks.length} new book(s) '
-              '($duplicateCount duplicates skipped)'
-            ),
+            content: Text('Added ${newBooks.length} new book(s) '
+                '($duplicateCount duplicates skipped)'),
             backgroundColor: Colors.green,
           ),
         );
@@ -364,9 +363,9 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _books.removeWhere((book) => booksToDelete.contains(book));
     });
-    
+
     _saveBooks();
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -398,8 +397,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomePage() {
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
+
     return Container(
-      color: const Color(0xFFFFFFFF),
+      color: theme.background,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -407,7 +408,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Icon(
               Icons.menu_book,
               size: 64,
-              color: const Color(0xFF3498DB),
+              color: theme.primary,
             ),
             const SizedBox(height: 20),
             Text(
@@ -415,7 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF2C3E50),
+                color: theme.text,
               ),
             ),
             const SizedBox(height: 10),
@@ -423,7 +424,7 @@ class _HomeScreenState extends State<HomeScreen> {
               '${_books.length} books in your library',
               style: TextStyle(
                 fontSize: 16,
-                color: const Color(0xFF7F8C8D),
+                color: theme.secondaryText,
               ),
             ),
             const SizedBox(height: 30),
@@ -434,10 +435,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 });
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3498DB),
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                backgroundColor: theme.primary,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
               ),
-              child: const Text(
+              child: Text(
                 'Browse Library',
                 style: TextStyle(fontSize: 16, color: Colors.white),
               ),
@@ -453,38 +455,62 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // OPTION 4: Always show a placeholder button
-Widget? _getSearchButton() {
-  if (_selectedIndex == 1) {
-    // Always return a button, even if state is not ready yet
-    return IconButton(
-      icon: const Icon(Icons.search),
-      onPressed: () {
-        // Try to get the state and toggle search
-        final libraryState = _libraryKey.currentState;
-        if (libraryState != null) {
-          // Call the toggle method directly instead of through the button
-          libraryState.toggleSearch();
-        } else {
-          print('⚠️ Library state not ready yet - try again');
-          // Optionally show a snackbar
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Search not ready, please try again'),
-              duration: Duration(seconds: 1),
-            ),
-          );
-        }
-      },
-      color: const Color(0xFF2C3E50),
-    );
+  Widget? _getSearchButton() {
+    final theme =
+        Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+
+    if (_selectedIndex == 1) {
+      return IconButton(
+        icon: const Icon(Icons.search),
+        onPressed: () {
+          final libraryState = _libraryKey.currentState;
+          if (libraryState != null) {
+            libraryState.toggleSearch();
+          } else {
+            print('⚠️ Library state not ready yet - try again');
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Search not ready, please try again'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+          }
+        },
+        color: theme.text,
+      );
+    }
+    return null;
   }
-  return null;
-}
+
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
+
+    // Update navigation items with current theme
+    _navigationItems = [
+      NavigationItem(
+        icon: Icons.home,
+        label: 'Home',
+        color: theme.primary.withOpacity(0.1),
+        activeColor: theme.primary,
+      ),
+      NavigationItem(
+        icon: Icons.library_books,
+        label: 'Library',
+        color: theme.primary.withOpacity(0.1),
+        activeColor: theme.primary,
+      ),
+      NavigationItem(
+        icon: Icons.settings,
+        label: 'Settings',
+        color: theme.primary.withOpacity(0.1),
+        activeColor: theme.primary,
+      ),
+    ];
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8F9FA),
+        backgroundColor: theme.appBar,
         elevation: 0,
         centerTitle: true,
         title: Text(
@@ -493,8 +519,8 @@ Widget? _getSearchButton() {
               : _selectedIndex == 1
                   ? 'Library'
                   : 'Settings',
-          style: const TextStyle(
-            color: Color(0xFF2C3E50),
+          style: TextStyle(
+            color: theme.text,
             fontWeight: FontWeight.bold,
             fontSize: 22,
           ),
@@ -507,7 +533,7 @@ Widget? _getSearchButton() {
       floatingActionButton: _selectedIndex == 1
           ? FloatingActionButton(
               onPressed: _showAddMenu,
-              backgroundColor: const Color(0xFF3498DB),
+              backgroundColor: theme.primary,
               child: const Icon(Icons.add, color: Colors.white),
             )
           : null,
@@ -530,7 +556,7 @@ Widget? _getSearchButton() {
             (index) {
               final item = _navigationItems[index];
               final isSelected = _selectedIndex == index;
-              
+
               return GestureDetector(
                 onTap: () => _onItemTapped(index),
                 child: AnimatedContainer(
@@ -549,15 +575,19 @@ Widget? _getSearchButton() {
                       Icon(
                         item.icon,
                         size: 24,
-                        color: isSelected ? item.activeColor : const Color(0xFF7F8C8D),
+                        color:
+                            isSelected ? item.activeColor : theme.secondaryText,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         item.label,
                         style: TextStyle(
                           fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          color: isSelected ? item.activeColor : const Color(0xFF7F8C8D),
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected
+                              ? item.activeColor
+                              : theme.secondaryText,
                         ),
                       ),
                     ],

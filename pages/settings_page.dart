@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../utils/theme_provider.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -9,28 +11,38 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   String? _selectedTheme;
-  String? _tempSelectedTheme; // Temporary selection in dialog
+  String? _tempSelectedTheme;
+
+  @override
+  void initState() {
+    super.initState();
+    // Load current theme on init
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    _selectedTheme = themeProvider.currentTheme.name;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
+    
     return Container(
-      color: const Color(0xFFFFFFFF),
+      color: theme.background,
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           const SizedBox(height: 20),
           
           // Settings header
-          const Row(
+          Row(
             children: [
-              Icon(Icons.settings, color: Color(0xFF3498DB), size: 28),
-              SizedBox(width: 12),
+              Icon(Icons.settings, color: theme.primary, size: 28),
+              const SizedBox(width: 12),
               Text(
                 'Settings',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF2C3E50),
+                  color: theme.text,
                 ),
               ),
             ],
@@ -55,12 +67,12 @@ class _SettingsPageState extends State<SettingsPage> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF3498DB).withOpacity(0.1),
+                  color: theme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.color_lens,
-                  color: Color(0xFF3498DB),
+                  color: theme.primary,
                 ),
               ),
               title: const Text(
@@ -85,7 +97,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showThemePicker() {
-    _tempSelectedTheme = _selectedTheme; // Initialize with current selection
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    _tempSelectedTheme = _selectedTheme;
     
     showDialog(
       context: context,
@@ -102,7 +115,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Title
                     const Text(
                       'Choose Theme Color',
                       style: TextStyle(
@@ -114,7 +126,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     
                     const SizedBox(height: 16),
                     
-                    // Color grid - smaller and centered
                     GridView.count(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -123,17 +134,16 @@ class _SettingsPageState extends State<SettingsPage> {
                       mainAxisSpacing: 12,
                       childAspectRatio: 1.1,
                       children: [
-                        _buildDialogThemeOption(Colors.blue, 'Blue', setState),
-                        _buildDialogThemeOption(Colors.red, 'Red', setState),
-                        _buildDialogThemeOption(Colors.amber, 'Yellow', setState),
-                        _buildDialogThemeOption(Colors.green, 'Green', setState),
-                        _buildDialogThemeOption(Colors.purple, 'Purple', setState),
+                        _buildDialogThemeOption(AppThemes.blue, setState),
+                        _buildDialogThemeOption(AppThemes.red, setState),
+                        _buildDialogThemeOption(AppThemes.yellow, setState),
+                        _buildDialogThemeOption(AppThemes.green, setState),
+                        _buildDialogThemeOption(AppThemes.purple, setState),
                       ],
                     ),
                     
                     const SizedBox(height: 20),
                     
-                    // Action buttons
                     Row(
                       children: [
                         Expanded(
@@ -157,10 +167,12 @@ class _SettingsPageState extends State<SettingsPage> {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: _tempSelectedTheme != null
-                                ? () {
+                                ? () async {
                                     setState(() {
                                       _selectedTheme = _tempSelectedTheme;
                                     });
+                                    // Save theme with persistence
+                                    await themeProvider.setThemeByName(_tempSelectedTheme!);
                                     Navigator.pop(context);
                                   }
                                 : null,
@@ -195,13 +207,14 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildDialogThemeOption(Color color, String name, Function setState) {
-    final isSelected = _tempSelectedTheme == name;
+  Widget _buildDialogThemeOption(AppThemeColors appTheme, Function setState) {
+    final isSelected = _tempSelectedTheme == appTheme.name;
+    final color = appTheme.primary;
     
     return GestureDetector(
       onTap: () {
         setState(() {
-          _tempSelectedTheme = name;
+          _tempSelectedTheme = appTheme.name;
         });
       },
       child: Container(
@@ -216,7 +229,6 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Color circle - smaller
             Container(
               width: 40,
               height: 40,
@@ -226,9 +238,8 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
             const SizedBox(height: 8),
-            // Theme name
             Text(
-              name,
+              appTheme.name,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,

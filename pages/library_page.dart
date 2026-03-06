@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/book.dart';
 import '../utils/tags_manager.dart';
 import '../utils/deletion.dart';
+import '../utils/theme_provider.dart';
 
 // Make the state class public
 class LibraryPageState extends State<LibraryPage> {
@@ -106,10 +108,12 @@ class LibraryPageState extends State<LibraryPage> {
 
   // Public method to get the search button
   Widget getSearchButton() {
+    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+    
     return IconButton(
       icon: Icon(_showSearchBar ? Icons.close : Icons.search),
       onPressed: _toggleSearch,
-      color: const Color(0xFF2C3E50),
+      color: theme.text,
     );
   }
 
@@ -120,6 +124,7 @@ class LibraryPageState extends State<LibraryPage> {
 
   Future<void> _showAddTagDialog(Book book) async {
     final TextEditingController controller = TextEditingController();
+    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
     
     // Get current tags for this book - refresh every time dialog opens
     await _loadTags(); // Ensure tags are up to date
@@ -137,17 +142,17 @@ class LibraryPageState extends State<LibraryPage> {
             final currentBookTags = currentBook.tagIds;
             
             return AlertDialog(
-              title: const Text('Manage Tags'),
+              title: Text('Manage Tags', style: TextStyle(color: theme.text)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Create new tag field
                   TextField(
                     controller: controller,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'Enter new tag name',
-                      border: OutlineInputBorder(),
-                      suffixIcon: Icon(Icons.add),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: Icon(Icons.add, color: theme.primary),
                     ),
                     onSubmitted: (value) async {
                       if (value.isNotEmpty) {
@@ -200,10 +205,10 @@ class LibraryPageState extends State<LibraryPage> {
                                 setDialogState(() {}); // Update dialog UI
                               },
                               side: BorderSide(
-                                color: isTagActive ? Colors.blue : Colors.grey.shade400,
+                                color: isTagActive ? theme.primary : Colors.grey.shade400,
                                 width: 1.5,
                               ),
-                              backgroundColor: isTagActive ? Colors.blue.shade50 : Colors.grey.shade100,
+                              backgroundColor: isTagActive ? theme.primary.withOpacity(0.1) : Colors.grey.shade100,
                               selectedColor: Colors.transparent,
                               showCheckmark: false,
                               shape: const StadiumBorder(),
@@ -218,7 +223,7 @@ class LibraryPageState extends State<LibraryPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Done'),
+                  child: Text('Done', style: TextStyle(color: theme.primary)),
                 ),
               ],
             );
@@ -239,6 +244,8 @@ class LibraryPageState extends State<LibraryPage> {
   }
 
   void _showTagFilterSheet() {
+    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -253,11 +260,12 @@ class LibraryPageState extends State<LibraryPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'Filter by Tags',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
+                      color: theme.text,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -282,11 +290,11 @@ class LibraryPageState extends State<LibraryPage> {
                           });
                         },
                         side: BorderSide(
-                          color: isSelected ? Colors.blue : Colors.grey.shade400,
+                          color: isSelected ? theme.primary : Colors.grey.shade400,
                           width: 1.5,
                         ),
                         backgroundColor: Colors.transparent,
-                        selectedColor: Colors.blue.shade50,
+                        selectedColor: theme.primary.withOpacity(0.1),
                         showCheckmark: false,
                         shape: const StadiumBorder(),
                       );
@@ -302,7 +310,7 @@ class LibraryPageState extends State<LibraryPage> {
                               _selectedTagIds.clear();
                             });
                           },
-                          child: const Text('Clear All'),
+                          child: Text('Clear All', style: TextStyle(color: theme.primary)),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -312,7 +320,10 @@ class LibraryPageState extends State<LibraryPage> {
                             Navigator.pop(context);
                             this.setState(() {});
                           },
-                          child: const Text('Apply'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.primary,
+                          ),
+                          child: const Text('Apply', style: TextStyle(color: Colors.white)),
                         ),
                       ),
                     ],
@@ -327,6 +338,8 @@ class LibraryPageState extends State<LibraryPage> {
   }
 
   void _showSortOptions() {
+    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+    
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -338,11 +351,12 @@ class LibraryPageState extends State<LibraryPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 'Sort By',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
+                  color: theme.text,
                 ),
               ),
               const SizedBox(height: 20),
@@ -359,10 +373,14 @@ class LibraryPageState extends State<LibraryPage> {
                       });
                       Navigator.pop(context);
                     },
+                    activeColor: theme.primary,
                   ),
                   trailing: isSelected
                       ? IconButton(
-                          icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
+                          icon: Icon(
+                            _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                            color: theme.primary,
+                          ),
                           onPressed: () {
                             setState(() {
                               _sortAscending = !_sortAscending;
@@ -382,6 +400,8 @@ class LibraryPageState extends State<LibraryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
+    
     print('🎨 Building LibraryPage with ${widget.books.length} books, filtered: ${_filteredAndSortedBooks.length}');
 
     return DeletionManager(
@@ -399,7 +419,7 @@ class LibraryPageState extends State<LibraryPage> {
       child: Container(
         color: _isDeleteModeActive
             ? const Color.fromRGBO(255, 0, 0, 0.05)
-            : const Color(0xFFFFFFFF),
+            : theme.background,
         child: Column(
           children: [
             // Search Bar (expandable)
@@ -412,14 +432,14 @@ class LibraryPageState extends State<LibraryPage> {
                       padding: const EdgeInsets.all(6),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.grey[100],
+                          color: theme.surface,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.grey[300]!),
                         ),
                         child: Row(
                           children: [
                             const SizedBox(width: 12),
-                            const Icon(Icons.search, color: Color(0xFF7F8C8D)),
+                            Icon(Icons.search, color: theme.secondaryText),
                             const SizedBox(width: 8),
                             Expanded(
                               child: TextField(
@@ -431,16 +451,17 @@ class LibraryPageState extends State<LibraryPage> {
                                     _isSearching = value.isNotEmpty;
                                   });
                                 },
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   hintText: 'Search by title or format...',
                                   border: InputBorder.none,
-                                  hintStyle: TextStyle(color: Color(0xFF7F8C8D)),
+                                  hintStyle: TextStyle(color: theme.secondaryText),
                                 ),
+                                style: TextStyle(color: theme.text),
                               ),
                             ),
                             if (_isSearching)
                               IconButton(
-                                icon: const Icon(Icons.clear, color: Color(0xFF7F8C8D)),
+                                icon: Icon(Icons.clear, color: theme.secondaryText),
                                 onPressed: _clearSearch,
                               ),
                           ],
@@ -470,13 +491,13 @@ class LibraryPageState extends State<LibraryPage> {
                         ),
                         selected: _selectedTagIds.isNotEmpty,
                         onSelected: (_) => _showTagFilterSheet(),
-                        avatar: const Icon(Icons.filter_list, size: 16),
+                        avatar: Icon(Icons.filter_list, size: 16, color: theme.primary),
                         side: BorderSide(
-                          color: _selectedTagIds.isNotEmpty ? Colors.blue : Colors.grey.shade400,
+                          color: _selectedTagIds.isNotEmpty ? theme.primary : Colors.grey.shade400,
                           width: 1.5,
                         ),
                         backgroundColor: Colors.transparent,
-                        selectedColor: Colors.blue.shade50,
+                        selectedColor: theme.primary.withOpacity(0.1),
                         showCheckmark: false,
                         shape: const StadiumBorder(),
                       ),
@@ -493,9 +514,10 @@ class LibraryPageState extends State<LibraryPage> {
                         avatar: Icon(
                           _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
                           size: 16,
+                          color: theme.primary,
                         ),
                         side: BorderSide(color: Colors.grey.shade400, width: 1),
-                        backgroundColor: Colors.transparent,
+                        backgroundColor: theme.surface,
                         shape: const StadiumBorder(),
                       ),
                     ),
@@ -507,9 +529,9 @@ class LibraryPageState extends State<LibraryPage> {
                         child: Chip(
                           label: Text(
                             tag.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Colors.blue,
+                              color: theme.primary,
                               fontSize: 12,
                             ),
                           ),
@@ -518,9 +540,9 @@ class LibraryPageState extends State<LibraryPage> {
                               _selectedTagIds.remove(tagId);
                             });
                           },
-                          side: BorderSide(color: Colors.blue, width: 1.5),
-                          backgroundColor: Colors.blue.shade50,
-                          deleteIconColor: Colors.blue,
+                          side: BorderSide(color: theme.primary, width: 1.5),
+                          backgroundColor: theme.primary.withOpacity(0.1),
+                          deleteIconColor: theme.primary,
                           deleteIcon: const Icon(Icons.close, size: 14),
                           labelPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           visualDensity: VisualDensity.compact,
@@ -571,6 +593,7 @@ class LibraryPageState extends State<LibraryPage> {
   Widget _buildBookCard(Book book, BuildContext context) {
     // Find the DeletionManagerState in the widget tree
     final deletionState = context.findAncestorStateOfType<DeletionManagerState>();
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
 
     // Wrap with ValueListenableBuilder to rebuild when selection changes
     return ValueListenableBuilder(
@@ -661,10 +684,10 @@ class LibraryPageState extends State<LibraryPage> {
                             book.title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF2C3E50),
+                              color: theme.text,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -684,9 +707,9 @@ class LibraryPageState extends State<LibraryPage> {
                               Expanded(
                                 child: Text(
                                   book.fileType.toUpperCase(),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xFF7F8C8D),
+                                    color: theme.secondaryText,
                                   ),
                                 ),
                               ),
@@ -697,10 +720,10 @@ class LibraryPageState extends State<LibraryPage> {
                           
                           // Tags section - ALWAYS SHOW (with or without tags)
                           if (book is TaggedBook)
-                            _buildTagsSection(book, bookColor)
+                            _buildTagsSection(book, bookColor, theme)
                           else
                             // Show just the add button for books without tags
-                            _buildAddTagButtonOnly(book),
+                            _buildAddTagButtonOnly(book, theme),
                         ],
                       ),
                     ),
@@ -765,7 +788,7 @@ class LibraryPageState extends State<LibraryPage> {
   }
 
   // Helper method for books without tags
-  Widget _buildAddTagButtonOnly(Book book) {
+  Widget _buildAddTagButtonOnly(Book book, AppThemeColors theme) {
     return Wrap(
       spacing: 4,
       runSpacing: 4,
@@ -783,11 +806,11 @@ class LibraryPageState extends State<LibraryPage> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.grey.shade400, width: 1),
               ),
-              child: const Center(
+              child: Center(
                 child: Icon(
                   Icons.add,
                   size: 14,
-                  color: Color(0xFF3498DB),
+                  color: theme.primary,
                 ),
               ),
             ),
@@ -798,7 +821,7 @@ class LibraryPageState extends State<LibraryPage> {
   }
 
   // Helper method to build tags section with dynamic display
-  Widget _buildTagsSection(TaggedBook book, Color bookColor) {
+  Widget _buildTagsSection(TaggedBook book, Color bookColor, AppThemeColors theme) {
     final int totalTags = book.tagIds.length;
     
     // Determine display mode based on tag count
@@ -833,11 +856,11 @@ class LibraryPageState extends State<LibraryPage> {
                     _toggleTagFilter(tag.id);
                   },
                   side: BorderSide(
-                    color: isTagSelected ? Colors.blue : Colors.grey.shade400,
+                    color: isTagSelected ? theme.primary : Colors.grey.shade400,
                     width: 1.2,
                   ),
                   backgroundColor: Colors.transparent,
-                  selectedColor: Colors.blue.shade50,
+                  selectedColor: theme.primary.withOpacity(0.1),
                   showCheckmark: false,
                   visualDensity: VisualDensity.compact,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -860,11 +883,11 @@ class LibraryPageState extends State<LibraryPage> {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.grey.shade400, width: 1),
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Icon(
                         Icons.add,
                         size: 14,
-                        color: Color(0xFF3498DB),
+                        color: theme.primary,
                       ),
                     ),
                   ),
@@ -906,11 +929,11 @@ class LibraryPageState extends State<LibraryPage> {
                     _toggleTagFilter(tag.id);
                   },
                   side: BorderSide(
-                    color: isTagSelected ? Colors.blue : Colors.grey.shade400,
+                    color: isTagSelected ? theme.primary : Colors.grey.shade400,
                     width: 1.2,
                   ),
                   backgroundColor: Colors.transparent,
-                  selectedColor: Colors.blue.shade50,
+                  selectedColor: theme.primary.withOpacity(0.1),
                   showCheckmark: false,
                   visualDensity: VisualDensity.compact,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -933,7 +956,7 @@ class LibraryPageState extends State<LibraryPage> {
                   selected: false,
                   onSelected: (_) => _showAllTagsDialog(book),
                   side: BorderSide(color: Colors.grey.shade400, width: 1.2),
-                  backgroundColor: Colors.grey.shade100,
+                  backgroundColor: theme.surface,
                   selectedColor: Colors.transparent,
                   showCheckmark: false,
                   visualDensity: VisualDensity.compact,
@@ -956,11 +979,11 @@ class LibraryPageState extends State<LibraryPage> {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.grey.shade400, width: 1),
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Icon(
                         Icons.add,
                         size: 14,
-                        color: Color(0xFF3498DB),
+                        color: theme.primary,
                       ),
                     ),
                   ),
@@ -982,9 +1005,9 @@ class LibraryPageState extends State<LibraryPage> {
                 ),
                 child: Text(
                   'See all $totalTags tags',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 8,
-                    color: Color(0xFF3498DB),
+                    color: theme.primary,
                   ),
                 ),
               ),
@@ -996,12 +1019,14 @@ class LibraryPageState extends State<LibraryPage> {
 
   // Dialog to show all tags for a book
   void _showAllTagsDialog(TaggedBook book) {
+    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(
+        title: Text(
           'All Tags',
-          style: TextStyle(fontSize: 18),
+          style: TextStyle(fontSize: 18, color: theme.text),
         ),
         content: Container(
           width: double.maxFinite,
@@ -1012,9 +1037,10 @@ class LibraryPageState extends State<LibraryPage> {
             children: [
               Text(
                 book.title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
+                  color: theme.text,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1041,11 +1067,11 @@ class LibraryPageState extends State<LibraryPage> {
                           Navigator.pop(context);
                         },
                         side: BorderSide(
-                          color: isTagSelected ? Colors.blue : Colors.grey.shade400,
+                          color: isTagSelected ? theme.primary : Colors.grey.shade400,
                           width: 1.2,
                         ),
                         backgroundColor: Colors.transparent,
-                        selectedColor: Colors.blue.shade50,
+                        selectedColor: theme.primary.withOpacity(0.1),
                         showCheckmark: false,
                       );
                     }).toList(),
@@ -1058,7 +1084,7 @@ class LibraryPageState extends State<LibraryPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text('Close', style: TextStyle(color: theme.primary)),
           ),
         ],
       ),
@@ -1066,6 +1092,8 @@ class LibraryPageState extends State<LibraryPage> {
   }
 
   Widget _buildEmptyState() {
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
+    
     if (widget.books.isEmpty && !_isSearching && _selectedTagIds.isEmpty) {
       return Center(
         child: Column(
@@ -1074,31 +1102,31 @@ class LibraryPageState extends State<LibraryPage> {
             Icon(
               Icons.library_books,
               size: 80,
-              color: const Color(0xFF3498DB),
+              color: theme.primary,
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Your Library',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2C3E50),
+                color: theme.text,
               ),
             ),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'No books added yet',
               style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF7F8C8D),
+                color: theme.secondaryText,
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Tap + to add books',
               style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF3498DB),
+                color: theme.primary,
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -1125,20 +1153,20 @@ class LibraryPageState extends State<LibraryPage> {
               color: Colors.grey,
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'No matches found',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2C3E50),
+                color: theme.text,
               ),
             ),
             const SizedBox(height: 10),
             Text(
               message,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF7F8C8D),
+                color: theme.secondaryText,
               ),
               textAlign: TextAlign.center,
             ),
@@ -1154,9 +1182,9 @@ class LibraryPageState extends State<LibraryPage> {
                   });
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3498DB),
+                  backgroundColor: theme.primary,
                 ),
-                child: const Text('Clear All Filters'),
+                child: const Text('Clear All Filters', style: TextStyle(color: Colors.white)),
               ),
           ],
         ),

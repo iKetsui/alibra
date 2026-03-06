@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:e_reader/utils/pdfviewer.dart';
-import 'package:e_reader/utils/epub_viewer.dart'; // This imports SimpleEpubViewer
+import 'package:e_reader/utils/epub_viewer.dart';
+import '../utils/theme_provider.dart';
 import '../models/book.dart';
 
 class ReaderPage extends StatefulWidget {
@@ -18,20 +20,22 @@ class _ReaderPageState extends State<ReaderPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
+    
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.book?.title ?? 'No Book Selected'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: theme.text),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.format_size),
+            icon: Icon(Icons.format_size, color: theme.text),
             onPressed: _showFontSizeDialog,
           ),
           IconButton(
-            icon: const Icon(Icons.brightness_6),
+            icon: Icon(Icons.brightness_6, color: theme.text),
             onPressed: _toggleTheme,
           ),
         ],
@@ -45,7 +49,6 @@ class _ReaderPageState extends State<ReaderPage> {
       return _buildNoBookSelected();
     }
 
-    // Check file type
     final fileType = widget.book!.fileType.toLowerCase();
     
     if (fileType == 'pdf') {
@@ -54,10 +57,8 @@ class _ReaderPageState extends State<ReaderPage> {
         onError: _handlePdfError,
       );
     } else if (fileType == 'epub') {
-      // Use SimpleEpubViewer (not EpubViewerScreen)
       return SimpleEpubViewer(book: widget.book!);
     } else {
-      // For any other file type, try PDF viewer and show error if fails
       if (_pdfError) {
         return _buildFileError();
       }
@@ -69,21 +70,25 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   Widget _buildNoBookSelected() {
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
+    
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.menu_book, size: 100, color: Colors.grey),
+          Icon(Icons.menu_book, size: 100, color: theme.secondaryText),
           const SizedBox(height: 20),
           Text(
             'No Book Selected',
-            style: Theme.of(context).textTheme.headlineSmall,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: theme.text,
+            ),
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'Go to Library and select a book to read',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(color: theme.secondaryText),
           ),
         ],
       ),
@@ -98,6 +103,8 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   Widget _buildFileError() {
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
+    
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -109,7 +116,7 @@ class _ReaderPageState extends State<ReaderPage> {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF2C3E50),
+              color: theme.text,
             ),
           ),
           const SizedBox(height: 10),
@@ -117,7 +124,7 @@ class _ReaderPageState extends State<ReaderPage> {
             'File: ${widget.book?.title}',
             style: TextStyle(
               fontSize: 16,
-              color: const Color(0xFF7F8C8D),
+              color: theme.secondaryText,
             ),
           ),
           const SizedBox(height: 10),
@@ -125,7 +132,7 @@ class _ReaderPageState extends State<ReaderPage> {
             'Type: ${widget.book?.fileType.toUpperCase()}',
             style: TextStyle(
               fontSize: 16,
-              color: const Color(0xFF7F8C8D),
+              color: theme.secondaryText,
             ),
           ),
           const SizedBox(height: 20),
@@ -155,7 +162,7 @@ class _ReaderPageState extends State<ReaderPage> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
-                    color: const Color(0xFF7F8C8D),
+                    color: theme.secondaryText,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -180,10 +187,10 @@ class _ReaderPageState extends State<ReaderPage> {
             },
             icon: const Icon(Icons.arrow_back),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3498DB),
+              backgroundColor: theme.primary,
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
             ),
-            label: const Text(
+            label: Text(
               'Back to Library',
               style: TextStyle(fontSize: 16, color: Colors.white),
             ),
@@ -196,7 +203,10 @@ class _ReaderPageState extends State<ReaderPage> {
                 _errorMessage = '';
               });
             },
-            child: const Text('Try Again'),
+            child: Text(
+              'Try Again',
+              style: TextStyle(color: theme.primary),
+            ),
           ),
         ],
       ),
@@ -204,6 +214,8 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   Widget _buildFormatItem(String text) {
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
+    
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -215,7 +227,7 @@ class _ReaderPageState extends State<ReaderPage> {
             text,
             style: TextStyle(
               fontSize: 14,
-              color: const Color(0xFF7F8C8D),
+              color: theme.secondaryText,
             ),
           ),
         ],
@@ -224,10 +236,12 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   void _showFontSizeDialog() {
+    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Font Size'),
+        title: Text('Font Size', style: TextStyle(color: theme.text)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -238,13 +252,14 @@ class _ReaderPageState extends State<ReaderPage> {
               divisions: 6,
               label: '16',
               onChanged: (value) {},
+              activeColor: theme.primary,
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: Text('OK', style: TextStyle(color: theme.primary)),
           ),
         ],
       ),
