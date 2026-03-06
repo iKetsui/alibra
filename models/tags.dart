@@ -1,15 +1,23 @@
 import 'dart:convert';
+import 'package:e_reader/database/hive.dart';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/book.dart';
+import 'book.dart';
 
-// SortOption enum at top level
+// ========== ENUMS ==========
 enum SortOption { title, dateAdded }
 
-// Tag model - WITHOUT colors
+// ========== TAG MODEL ==========
+@HiveType(typeId: 1)
 class Tag {
+  @HiveField(0)
   final String id;
+  
+  @HiveField(1)
   final String name;
+  
+  @HiveField(2)
   final DateTime createdAt;
 
   Tag({
@@ -27,7 +35,7 @@ class Tag {
     );
   }
 
-  // Convert to Map for storage
+  // Convert to Map for storage (keep for backward compatibility)
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -46,9 +54,11 @@ class Tag {
   }
 }
 
-// Extended Book class with tags (for use in UI)
+// ========== TAGGED BOOK MODEL ==========
+@HiveType(typeId: 2)
 class TaggedBook extends Book {
-  final List<String> tagIds; // Store tag IDs
+  @HiveField(5)
+  final List<String> tagIds;
 
   TaggedBook({
     required super.id,
@@ -92,153 +102,56 @@ class TaggedBook extends Book {
   }
 }
 
-// Main Tag Manager
+// ========== TAG MANAGER ==========
+// ========== TAG MANAGER ==========
 class TagManager {
-  static const String _tagsKey = 'app_tags';
-  static const String _bookTagsKey = 'book_tags';
-
   // Save a tag
   static Future<void> saveTag(Tag tag) async {
-    final prefs = await SharedPreferences.getInstance();
-    final tags = await loadAllTags();
-    
-    // Check if tag with same name exists
-    final existingIndex = tags.indexWhere((t) => t.name.toLowerCase() == tag.name.toLowerCase());
-    if (existingIndex >= 0) {
-      tags[existingIndex] = tag; // Replace
-    } else {
-      tags.add(tag);
-    }
-    
-    final tagsJson = tags.map((t) => t.toMap()).toList();
-    await prefs.setString(_tagsKey, jsonEncode(tagsJson));
+    await HiveService.saveTag(tag);
   }
 
   // Load all tags
   static Future<List<Tag>> loadAllTags() async {
-    final prefs = await SharedPreferences.getInstance();
-    final tagsJson = prefs.getString(_tagsKey);
-    
-    if (tagsJson == null) return [];
-    
-    try {
-      final List<dynamic> decoded = jsonDecode(tagsJson);
-      return decoded.map((item) => Tag.fromMap(item)).toList();
-    } catch (e) {
-      print('Error loading tags: $e');
-      return [];
-    }
+    return HiveService.getAllTags();
   }
 
   // Delete a tag
   static Future<void> deleteTag(String tagId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final tags = await loadAllTags();
-    tags.removeWhere((tag) => tag.id == tagId);
-    
-    // Also remove this tag from all books
-    final bookTags = await _loadAllBookTags();
-    bookTags.removeWhere((bookId, tagIds) {
-      tagIds.remove(tagId);
-      return tagIds.isEmpty;
-    });
-    await _saveAllBookTags(bookTags);
-    
-    final tagsJson = tags.map((t) => t.toMap()).toList();
-    await prefs.setString(_tagsKey, jsonEncode(tagsJson));
+    await HiveService.deleteTag(tagId);
   }
 
   // Update tag
   static Future<void> updateTag(Tag tag) async {
-    await saveTag(tag);
+    await HiveService.saveTag(tag);
   }
 
   // Get tags for a book
   static Future<List<Tag>> getTagsForBook(String bookId) async {
-    final allTags = await loadAllTags();
-    final bookTags = await _loadAllBookTags();
-    final tagIds = bookTags[bookId] ?? [];
-    
-    return allTags.where((tag) => tagIds.contains(tag.id)).toList();
+    return HiveService.getBookTags(bookId);
   }
 
   // Add tag to book
   static Future<void> addTagToBook(String bookId, String tagId) async {
-    final bookTags = await _loadAllBookTags();
-    
-    if (!bookTags.containsKey(bookId)) {
-      bookTags[bookId] = [];
-    }
-    
-    if (!bookTags[bookId]!.contains(tagId)) {
-      bookTags[bookId]!.add(tagId);
-      await _saveAllBookTags(bookTags);
-    }
+    await HiveService.addTagToBook(bookId, tagId);
   }
 
   // Remove tag from book
   static Future<void> removeTagFromBook(String bookId, String tagId) async {
-    final bookTags = await _loadAllBookTags();
-    
-    if (bookTags.containsKey(bookId)) {
-      bookTags[bookId]!.remove(tagId);
-      if (bookTags[bookId]!.isEmpty) {
-        bookTags.remove(bookId);
-      }
-      await _saveAllBookTags(bookTags);
-    }
+    await HiveService.removeTagFromBook(bookId, tagId);
   }
 
   // Get all books with a specific tag
   static Future<List<String>> getBookIdsWithTag(String tagId) async {
-    final bookTags = await _loadAllBookTags();
-    final bookIds = <String>[];
-    
-    bookTags.forEach((bookId, tags) {
-      if (tags.contains(tagId)) {
-        bookIds.add(bookId);
-      }
-    });
-    
-    return bookIds;
+    final books = HiveService.getBooksWithTag(tagId);
+    return books.map((b) => b.id).toList();
   }
 
   // Convert List<Book> to List<TaggedBook> with tags
   static Future<List<TaggedBook>> enrichBooksWithTags(List<Book> books) async {
-    final bookTags = await _loadAllBookTags();
-    
     return books.map((book) {
-      final tagIds = bookTags[book.id] ?? [];
+      final tagIds = HiveService.getBookTagIds(book.id);
       return TaggedBook.fromBook(book, tagIds: tagIds);
     }).toList();
-  }
-
-  // Private: Load all book-tag associations
-  static Future<Map<String, List<String>>> _loadAllBookTags() async {
-    final prefs = await SharedPreferences.getInstance();
-    final bookTagsJson = prefs.getString(_bookTagsKey);
-    
-    if (bookTagsJson == null) return {};
-    
-    try {
-      final Map<String, dynamic> decoded = jsonDecode(bookTagsJson);
-      final result = <String, List<String>>{};
-      
-      decoded.forEach((key, value) {
-        result[key] = List<String>.from(value);
-      });
-      
-      return result;
-    } catch (e) {
-      print('Error loading book tags: $e');
-      return {};
-    }
-  }
-
-  // Private: Save all book-tag associations
-  static Future<void> _saveAllBookTags(Map<String, List<String>> bookTags) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_bookTagsKey, jsonEncode(bookTags));
   }
 
   // Sort books

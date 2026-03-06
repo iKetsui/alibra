@@ -2,16 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'models/book.dart';
+import 'models/tags.dart';
 import 'utils/file_handler.dart';
-import 'utils/storage_helper.dart';
 import 'utils/theme_provider.dart';
+import 'database/hive.dart';
 import 'pages/library_page.dart';
 import 'pages/reader_page.dart';
 import 'pages/settings_page.dart';
 
-void main() {
-  WidgetsFlutterBinding
-      .ensureInitialized(); // Required for async initialization
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Hive
+  try {
+    await HiveService.initialize();
+    print('✅ Hive initialized successfully');
+  } catch (e) {
+    print('❌ Failed to initialize Hive: $e');
+  }
+  
   runApp(const MyApp());
 }
 
@@ -25,7 +34,7 @@ class MyApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           final theme = themeProvider.currentTheme;
-
+          
           return MaterialApp(
             title: 'E-Reader',
             debugShowCheckedModeBanner: false,
@@ -67,19 +76,43 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadBooks();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    await _migrateIfNeeded();
+    await _loadBooks();
+  }
+
+  Future<void> _migrateIfNeeded() async {
+    // Check if Hive is empty
+    if (HiveService.booksCount == 0) {
+      // Try to load from SharedPreferences (if you still have the old storage)
+      // This is optional - remove if you've fully migrated
+      try {
+        // final oldBooks = await StorageHelper.loadBooks();
+        // if (oldBooks.isNotEmpty) {
+        //   print('🔄 Migrating ${oldBooks.length} books from SharedPreferences to Hive');
+        //   await HiveService.saveBooks(oldBooks);
+        // }
+      } catch (e) {
+        print('📭 No old data to migrate');
+      }
+    }
   }
 
   Future<void> _loadBooks() async {
-    final savedBooks = await StorageHelper.loadBooks();
-    print('📚 Loaded ${savedBooks.length} books from storage');
+    // Load from Hive
+    final savedBooks = HiveService.getAllBooks();
+    print('📚 Loaded ${savedBooks.length} books from Hive');
     setState(() {
       _books = savedBooks;
     });
   }
 
   Future<void> _saveBooks() async {
-    await StorageHelper.saveBooks(_books);
+    await HiveService.saveBooks(_books);
+    print('💾 Saved ${_books.length} books to Hive');
   }
 
   void _onItemTapped(int index) {
@@ -90,9 +123,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Show add menu when FAB is pressed
   void _showAddMenu() {
-    final theme =
-        Provider.of<ThemeProvider>(context, listen: false).currentTheme;
-
+    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+    
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -113,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
+              
               // Pick files option
               ListTile(
                 leading: Container(
@@ -141,9 +173,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   _pickFiles();
                 },
               ),
-
+              
               const SizedBox(height: 8),
-
+              
               // Pick folder option
               ListTile(
                 leading: Container(
@@ -183,18 +215,20 @@ class _HomeScreenState extends State<HomeScreen> {
     if (books.isNotEmpty) {
       // Use FileHandler to filter duplicates (checks both path AND name)
       final newBooks = FileHandler.filterNewBooks(books, _books);
-
+      
       if (newBooks.isNotEmpty) {
         setState(() {
           _books.addAll(newBooks);
         });
         await _saveBooks();
-
+        
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Added ${newBooks.length} new book(s) '
-                '(${books.length - newBooks.length} duplicates skipped)'),
+            content: Text(
+              'Added ${newBooks.length} new book(s) '
+              '(${books.length - newBooks.length} duplicates skipped)'
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -214,14 +248,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _pickFolder() async {
     // Let user pick a folder
     String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-
+    
     if (selectedDirectory == null) {
       return; // User cancelled
     }
-
+    
     // Show loading dialog
     if (!context.mounted) return;
-
+    
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -229,14 +263,13 @@ class _HomeScreenState extends State<HomeScreen> {
         child: CircularProgressIndicator(),
       ),
     );
-
+    
     // Scan the selected folder
-    final foundBooks =
-        await FileHandler.scanFolder(customPath: selectedDirectory);
-
+    final foundBooks = await FileHandler.scanFolder(customPath: selectedDirectory);
+    
     // Close loading dialog
     if (context.mounted) Navigator.pop(context);
-
+    
     if (foundBooks.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -248,105 +281,47 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       return;
     }
-
+    
     // Get duplicate summary for better feedback
     final summary = FileHandler.getDuplicateSummary(foundBooks, _books);
-
+    
     // Filter out books that already exist (by path OR name)
     final newBooks = FileHandler.filterNewBooks(foundBooks, _books);
-
+    
     if (newBooks.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('No new books added - '
-                '${summary['pathDuplicates']} path duplicates, '
-                '${summary['nameDuplicates']} name duplicates'),
+            content: Text(
+              'No new books added - '
+              '${summary['pathDuplicates']} path duplicates, '
+              '${summary['nameDuplicates']} name duplicates'
+            ),
             backgroundColor: Colors.orange,
           ),
         );
       }
       return;
     }
-
+    
     // Add new books
     setState(() {
       _books.addAll(newBooks);
     });
-
+    
     await _saveBooks();
-
+    
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Added ${newBooks.length} new books '
-              '(${summary['pathDuplicates']} path duplicates, '
-              '${summary['nameDuplicates']} name duplicates skipped)'),
+          content: Text(
+            'Added ${newBooks.length} new books '
+            '(${summary['pathDuplicates']} path duplicates, '
+            '${summary['nameDuplicates']} name duplicates skipped)'
+          ),
           backgroundColor: Colors.green,
         ),
       );
-    }
-  }
-
-  // Updated _addBooks method with duplicate check
-  Future<void> _addBooks(List<String> filePaths) async {
-    final newBooks = <Book>[];
-    int duplicateCount = 0;
-
-    for (final path in filePaths) {
-      final fileName = path.split('/').last;
-      final fileExtension = fileName.split('.').last.toLowerCase();
-
-      // Check if this file already exists in library (by path OR name)
-      final isDuplicate = _books.any((book) =>
-          book.filePath == path ||
-          book.title.toLowerCase() ==
-              fileName
-                  .replaceAll('.pdf', '')
-                  .replaceAll('.epub', '')
-                  .replaceAll('_', ' ')
-                  .toLowerCase());
-
-      if (!isDuplicate) {
-        newBooks.add(Book(
-          id: DateTime.now().microsecondsSinceEpoch.toString(),
-          title: fileName
-              .replaceAll('.pdf', '')
-              .replaceAll('.epub', '')
-              .replaceAll('_', ' '),
-          filePath: path,
-          fileType: fileExtension,
-        ));
-      } else {
-        duplicateCount++;
-        print('🚫 Skipping duplicate: $fileName');
-      }
-    }
-
-    if (newBooks.isNotEmpty) {
-      setState(() {
-        _books.addAll(newBooks);
-      });
-      await _saveBooks();
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Added ${newBooks.length} new book(s) '
-                '($duplicateCount duplicates skipped)'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No new books added - all files are duplicates'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
     }
   }
 
@@ -359,23 +334,56 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _deleteBooks(List<Book> booksToDelete) {
-    setState(() {
-      _books.removeWhere((book) => booksToDelete.contains(book));
-    });
-
-    _saveBooks();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          booksToDelete.length == 1
-              ? 'Removed "${booksToDelete.first.title}" from library'
-              : 'Removed ${booksToDelete.length} books from library',
-        ),
-        duration: const Duration(seconds: 2),
+  void _deleteBooks(List<Book> booksToDelete) async {
+    print('🗑️ Deleting ${booksToDelete.length} books...');
+    
+    // Show loading indicator
+    if (!context.mounted) return;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
       ),
     );
+    
+    // Delete from Hive
+    for (var book in booksToDelete) {
+      await HiveService.deleteBook(book.id);
+      print('✅ Deleted: ${book.title}');
+    }
+    
+    // Refresh from Hive
+    final updatedBooks = HiveService.getAllBooks();
+    
+    // Close loading
+    if (context.mounted) Navigator.pop(context);
+    
+    // Update state
+    setState(() {
+      _books = updatedBooks;
+    });
+    
+    // Refresh LibraryPage
+    _libraryKey.currentState?.refreshFromParent();
+    
+    // Show confirmation
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            booksToDelete.length == 1
+                ? 'Removed "${booksToDelete.first.title}" from library'
+                : 'Removed ${booksToDelete.length} books from library',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+    
+    // Debug: Print final state
+    HiveService.printAllData();
   }
 
   Widget _buildCurrentPage() {
@@ -398,7 +406,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomePage() {
     final theme = Provider.of<ThemeProvider>(context).currentTheme;
-
+    
     return Container(
       color: theme.background,
       child: Center(
@@ -436,12 +444,11 @@ class _HomeScreenState extends State<HomeScreen> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.primary,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
               ),
               child: Text(
                 'Browse Library',
-                style: TextStyle(fontSize: 16, color: Colors.white),
+                style: const TextStyle(fontSize: 16, color: Colors.white),
               ),
             ),
           ],
@@ -456,9 +463,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // OPTION 4: Always show a placeholder button
   Widget? _getSearchButton() {
-    final theme =
-        Provider.of<ThemeProvider>(context, listen: false).currentTheme;
-
+    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+    
     if (_selectedIndex == 1) {
       return IconButton(
         icon: const Icon(Icons.search),
@@ -485,7 +491,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context).currentTheme;
-
+    
     // Update navigation items with current theme
     _navigationItems = [
       NavigationItem(
@@ -556,7 +562,7 @@ class _HomeScreenState extends State<HomeScreen> {
             (index) {
               final item = _navigationItems[index];
               final isSelected = _selectedIndex == index;
-
+              
               return GestureDetector(
                 onTap: () => _onItemTapped(index),
                 child: AnimatedContainer(
@@ -575,19 +581,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       Icon(
                         item.icon,
                         size: 24,
-                        color:
-                            isSelected ? item.activeColor : theme.secondaryText,
+                        color: isSelected ? item.activeColor : theme.secondaryText,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         item.label,
                         style: TextStyle(
                           fontSize: 12,
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.normal,
-                          color: isSelected
-                              ? item.activeColor
-                              : theme.secondaryText,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected ? item.activeColor : theme.secondaryText,
                         ),
                       ),
                     ],

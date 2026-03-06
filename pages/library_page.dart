@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/book.dart';
-import '../utils/tags_manager.dart';
+import '../models/tags.dart';
 import '../utils/deletion.dart';
 import '../utils/theme_provider.dart';
+import '../database/hive.dart';
 
 // Make the state class public
 class LibraryPageState extends State<LibraryPage> {
@@ -61,7 +62,8 @@ class LibraryPageState extends State<LibraryPage> {
   @override
   void didUpdateWidget(LibraryPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    print('📚 LibraryPage updated - books: ${widget.books.length}');
+    print(
+        '📚 LibraryPage didUpdateWidget - old: ${oldWidget.books.length}, new: ${widget.books.length}');
     if (widget.books != oldWidget.books) {
       _loadTags();
     }
@@ -74,13 +76,27 @@ class LibraryPageState extends State<LibraryPage> {
     super.dispose();
   }
 
+  // Public method to refresh from parent
+  void refreshFromParent() {
+    print('🔄 LibraryPage refreshing from parent');
+    _loadTags();
+  }
+
   Future<void> _loadTags() async {
     final tags = await TagManager.loadAllTags();
+
+    // IMPORTANT: Use widget.books which comes from main.dart
+    // which should now be getting data from Hive
     final taggedBooks = await TagManager.enrichBooksWithTags(widget.books);
+
     setState(() {
       _allTags = tags;
       _taggedBooks = taggedBooks.cast<TaggedBook>();
     });
+
+    print('📚 _loadTags completed:');
+    print('  - widget.books: ${widget.books.length}');
+    print('  - _taggedBooks: ${_taggedBooks.length}');
   }
 
   void _toggleSearch() {
@@ -160,7 +176,8 @@ class LibraryPageState extends State<LibraryPage> {
                       if (value.isNotEmpty) {
                         final newTag = Tag.fromName(value);
                         await TagManager.saveTag(newTag);
-                        await TagManager.addTagToBook(book.id, newTag.id);
+                        await TagManager.addTagToBook(
+                            book.id, newTag.id); // FIXED
                         await _loadTags(); // Reload all tags
                         setDialogState(() {}); // Update dialog UI
                         controller.clear();
@@ -203,10 +220,10 @@ class LibraryPageState extends State<LibraryPage> {
                               onSelected: (selected) async {
                                 if (selected) {
                                   await TagManager.addTagToBook(
-                                      book.id, tag.id);
+                                      book.id, tag.id); // FIXED
                                 } else {
                                   await TagManager.removeTagFromBook(
-                                      book.id, tag.id);
+                                      book.id, tag.id); // FIXED
                                 }
                                 await _loadTags(); // Reload all tags
                                 setDialogState(() {}); // Update dialog UI
@@ -293,7 +310,6 @@ class LibraryPageState extends State<LibraryPage> {
                         ),
                         selected: isSelected,
                         onSelected: (selected) {
-                          // Instant filter update
                           setState(() {
                             if (selected) {
                               _selectedTagIds.add(tag.id);
@@ -301,7 +317,7 @@ class LibraryPageState extends State<LibraryPage> {
                               _selectedTagIds.remove(tag.id);
                             }
                           });
-                          // Update the main page state immediately
+                          // Update main page state
                           this.setState(() {});
                         },
                         side: BorderSide(
@@ -325,7 +341,6 @@ class LibraryPageState extends State<LibraryPage> {
                           setState(() {
                             _selectedTagIds.clear();
                           });
-                          // Update the main page state immediately
                           this.setState(() {});
                         },
                         child: Text('Clear All',

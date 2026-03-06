@@ -7,7 +7,7 @@ import '../models/book.dart';
 
 class ReaderPage extends StatefulWidget {
   final Book? book;
-  
+
   const ReaderPage({super.key, this.book});
 
   @override
@@ -21,7 +21,7 @@ class _ReaderPageState extends State<ReaderPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context).currentTheme;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.book?.title ?? 'No Book Selected'),
@@ -44,34 +44,60 @@ class _ReaderPageState extends State<ReaderPage> {
     );
   }
 
+// In the _buildContent method, wrap EPUB viewer in try-catch
   Widget _buildContent() {
     if (widget.book == null) {
       return _buildNoBookSelected();
     }
 
     final fileType = widget.book!.fileType.toLowerCase();
-    
-    if (fileType == 'pdf') {
-      return PDFViewerScreen(
-        filePath: widget.book!.filePath,
-        onError: _handlePdfError,
-      );
-    } else if (fileType == 'epub') {
-      return SimpleEpubViewer(book: widget.book!);
-    } else {
-      if (_pdfError) {
-        return _buildFileError();
+
+    try {
+      if (fileType == 'pdf') {
+        return PDFViewerScreen(
+          filePath: widget.book!.filePath,
+          onError: _handlePdfError,
+        );
+      } else if (fileType == 'epub') {
+        // Use enhanced SimpleEpubViewer with error handling
+        return SimpleEpubViewer(book: widget.book!);
+      } else {
+        if (_pdfError) {
+          return _buildFileError();
+        }
+        return PDFViewerScreen(
+          filePath: widget.book!.filePath,
+          onError: _handlePdfError,
+        );
       }
-      return PDFViewerScreen(
-        filePath: widget.book!.filePath,
-        onError: _handlePdfError,
+    } catch (e) {
+      print('❌ Error opening file: $e');
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error, size: 80, color: Colors.red),
+            const SizedBox(height: 20),
+            const Text(
+              'Cannot Open File',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Text('Error: ${e.toString()}'),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Back to Library'),
+            ),
+          ],
+        ),
       );
     }
   }
 
   Widget _buildNoBookSelected() {
     final theme = Provider.of<ThemeProvider>(context).currentTheme;
-    
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -81,8 +107,8 @@ class _ReaderPageState extends State<ReaderPage> {
           Text(
             'No Book Selected',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: theme.text,
-            ),
+                  color: theme.text,
+                ),
           ),
           const SizedBox(height: 10),
           Text(
@@ -104,7 +130,7 @@ class _ReaderPageState extends State<ReaderPage> {
 
   Widget _buildFileError() {
     final theme = Provider.of<ThemeProvider>(context).currentTheme;
-    
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -156,9 +182,9 @@ class _ReaderPageState extends State<ReaderPage> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  _errorMessage.isNotEmpty 
-                    ? _errorMessage 
-                    : 'The file is not compatible with the PDF viewer.',
+                  _errorMessage.isNotEmpty
+                      ? _errorMessage
+                      : 'The file is not compatible with the PDF viewer.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -215,7 +241,7 @@ class _ReaderPageState extends State<ReaderPage> {
 
   Widget _buildFormatItem(String text) {
     final theme = Provider.of<ThemeProvider>(context).currentTheme;
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -236,8 +262,9 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   void _showFontSizeDialog() {
-    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
-    
+    final theme =
+        Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

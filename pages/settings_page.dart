@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
+import '../database/hive.dart'; // Add this import
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -12,13 +13,39 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   String? _selectedTheme;
   String? _tempSelectedTheme;
+  String _dbPath = 'Loading...';
+  bool _usingCustomPath = false;
 
   @override
   void initState() {
     super.initState();
-    // Load current theme on init
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    // Load current theme
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    _selectedTheme = themeProvider.currentTheme.name;
+    setState(() {
+      _selectedTheme = themeProvider.currentTheme.name;
+    });
+    
+    // Load database info
+    await _loadDbInfo();
+  }
+
+  Future<void> _loadDbInfo() async {
+    final path = HiveService.currentPath;
+    if (path != null) {
+      setState(() {
+        _dbPath = path;
+      });
+    }
+    
+    // Check if using custom path
+    final customPath = await HiveService.getSetting('hive_custom_path');
+    setState(() {
+      _usingCustomPath = customPath != null;
+    });
   }
 
   @override
@@ -89,6 +116,169 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: _showThemePicker,
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Database Information Card
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: theme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.storage,
+                      color: theme.primary,
+                    ),
+                  ),
+                  title: const Text(
+                    'Database Location',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    _dbPath,
+                    style: const TextStyle(fontSize: 12),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (_usingCustomPath)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 72, right: 16, bottom: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Using custom path',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.primary,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            await HiveService.resetToDefaultPath();
+                            await _loadDbInfo();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Reset to default database location'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          child: const Text('Reset to Default'),
+                        ),
+                      ],
+                    ),
+                  ),
+                
+                // Export/Import buttons
+                Padding(
+                  padding: const EdgeInsets.only(left: 72, right: 16, bottom: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _exportDatabase,
+                          icon: const Icon(Icons.download, size: 18),
+                          label: const Text('Export'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: theme.primary,
+                            side: BorderSide(color: theme.primary),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _showImportDialog,
+                          icon: const Icon(Icons.upload, size: 18),
+                          label: const Text('Import'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: theme.primary,
+                            side: BorderSide(color: theme.primary),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Debug section (optional - remove in production)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.bug_report,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  title: const Text(
+                    'Debug',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _printDatabaseContents,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[700],
+                          ),
+                          child: const Text('Print DB to Console'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -171,9 +361,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                     setState(() {
                                       _selectedTheme = _tempSelectedTheme;
                                     });
-                                    // Save theme with persistence
                                     await themeProvider.setThemeByName(_tempSelectedTheme!);
-                                    Navigator.pop(context);
+                                    if (mounted) Navigator.pop(context);
                                   }
                                 : null,
                             style: ElevatedButton.styleFrom(
@@ -265,5 +454,56 @@ class _SettingsPageState extends State<SettingsPage> {
       default:
         return Colors.blue;
     }
+  }
+
+  // Database utility functions
+  Future<void> _exportDatabase() async {
+    // This would need a file picker to choose export location
+    // For now, just show a message
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Export feature coming soon'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _showImportDialog() async {
+    // This would need a file picker to choose import file
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import Database'),
+        content: const Text('This will replace your current database. Continue?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Import feature coming soon'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _printDatabaseContents() {
+    HiveService.printAllData();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Database contents printed to console'),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 }

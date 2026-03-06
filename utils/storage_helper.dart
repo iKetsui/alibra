@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/book.dart';
-import 'tags_manager.dart';
+import '../models/tags.dart';
 
 class StorageHelper {
   static const String _booksKey = 'library_books';

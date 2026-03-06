@@ -1,8 +1,22 @@
+import 'package:hive/hive.dart';
+
+part 'book.g.dart'; // This will be generated
+
+@HiveType(typeId: 0) // Unique ID for Book type
 class Book {
+  @HiveField(0)
   final String id;
+  
+  @HiveField(1)
   final String title;
+  
+  @HiveField(2)
   final String filePath;
+  
+  @HiveField(3)
   final String fileType;
+  
+  @HiveField(4)
   final int colorCode;
 
   Book({
@@ -24,7 +38,7 @@ class Book {
     }
   }
 
-  // Convert to Map for storage
+  // Convert to Map for storage (keep for backward compatibility)
   Map<String, dynamic> toMap() {
     return {
       'id': id,
