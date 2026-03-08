@@ -246,6 +246,7 @@ class HiveService {
     return null;
   }
 
+  // In HiveService class - this should already exist
   static Future<void> deleteTag(String id) async {
     // Remove this tag from all books first
     final allBookTags = bookTagsBox.toMap();
@@ -253,7 +254,11 @@ class HiveService {
       final tags = List<String>.from(entry.value);
       if (tags.contains(id)) {
         tags.remove(id);
-        await bookTagsBox.put(entry.key, tags);
+        if (tags.isEmpty) {
+          await bookTagsBox.delete(entry.key);
+        } else {
+          await bookTagsBox.put(entry.key, tags);
+        }
       }
     }
     await tagsBox.delete(id);

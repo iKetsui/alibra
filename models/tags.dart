@@ -13,10 +13,10 @@ enum SortOption { title, dateAdded }
 class Tag {
   @HiveField(0)
   final String id;
-  
+
   @HiveField(1)
   final String name;
-  
+
   @HiveField(2)
   final DateTime createdAt;
 
@@ -155,9 +155,10 @@ class TagManager {
   }
 
   // Sort books
-  static List<Book> sortBooks(List<Book> books, SortOption option, {bool ascending = true}) {
+  static List<Book> sortBooks(List<Book> books, SortOption option,
+      {bool ascending = true}) {
     final sorted = List<Book>.from(books);
-    
+
     switch (option) {
       case SortOption.title:
         sorted.sort((a, b) => a.title.compareTo(b.title));
@@ -171,14 +172,15 @@ class TagManager {
         });
         break;
     }
-    
+
     return ascending ? sorted : sorted.reversed.toList();
   }
 
   // Filter books by tags (AND logic - book must have all selected tags)
-  static List<Book> filterBooksByTags(List<Book> books, List<String> selectedTagIds) {
+  static List<Book> filterBooksByTags(
+      List<Book> books, List<String> selectedTagIds) {
     if (selectedTagIds.isEmpty) return books;
-    
+
     return books.where((book) {
       // If book is TaggedBook, use its tagIds
       if (book is TaggedBook) {
@@ -189,9 +191,10 @@ class TagManager {
   }
 
   // Filter books by tags (OR logic - book can have any of the selected tags)
-  static List<Book> filterBooksByAnyTag(List<Book> books, List<String> selectedTagIds) {
+  static List<Book> filterBooksByAnyTag(
+      List<Book> books, List<String> selectedTagIds) {
     if (selectedTagIds.isEmpty) return books;
-    
+
     return books.where((book) {
       if (book is TaggedBook) {
         return book.tagIds.any((tagId) => selectedTagIds.contains(tagId));
