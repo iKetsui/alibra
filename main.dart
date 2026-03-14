@@ -1,3 +1,4 @@
+import 'package:e_reader/pages/ai_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -404,59 +405,85 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildHomePage() {
-    final theme = Provider.of<ThemeProvider>(context).currentTheme;
-    
-    return Container(
-      color: theme.background,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.menu_book,
-              size: 64,
-              color: theme.primary,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Welcome to E-Reader',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: theme.text,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              '${_books.length} books in your library',
-              style: TextStyle(
-                fontSize: 16,
-                color: theme.secondaryText,
-              ),
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _selectedIndex = 1;
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-              ),
-              child: Text(
-                'Browse Library',
-                style: const TextStyle(fontSize: 16, color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+// In _HomeScreenState, update _buildHomePage() method:
 
+Widget _buildHomePage() {
+  final theme = Provider.of<ThemeProvider>(context).currentTheme;
+  
+  return Container(
+    color: theme.background,
+    child: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.menu_book,
+            size: 64,
+            color: theme.primary,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Welcome to E-Reader',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: theme.text,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '${_books.length} books in your library',
+            style: TextStyle(
+              fontSize: 16,
+              color: theme.secondaryText,
+            ),
+          ),
+          const SizedBox(height: 30),
+          
+          // Browse Library button
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _selectedIndex = 1; // Switch to Library page
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+            ),
+            child: const Text(
+              'Browse Library',
+              style: TextStyle(fontSize: 16, color: Colors.white),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // AI Chat button
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AIChatPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.auto_awesome, color: Colors.white),
+            label: const Text(
+              'Ask Librarian AI',
+              style: TextStyle(fontSize: 16, color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4ECDC4),
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
   Widget _buildSettingsPage() {
     return const SettingsPage();
   }
