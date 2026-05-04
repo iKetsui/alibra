@@ -60,6 +60,8 @@ class _SettingsPageState extends State<SettingsPage> {
     });
   }
 
+// Inside settings_page.dart, update the _showThemePicker method:
+
   void _showThemePicker() {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     _tempSelectedTheme = _selectedTheme;
@@ -74,7 +76,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Container(
-                width: 320,
+                width: 360, // Slightly wider for more themes
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -88,20 +90,33 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 1.1,
-                      children: [
-                        _buildDialogThemeOption(AppThemes.blue, setState),
-                        _buildDialogThemeOption(AppThemes.red, setState),
-                        _buildDialogThemeOption(AppThemes.yellow, setState),
-                        _buildDialogThemeOption(AppThemes.green, setState),
-                        _buildDialogThemeOption(AppThemes.purple, setState),
-                      ],
+                    // Use GridView with 2 columns, will scroll if needed
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.6,
+                      ),
+                      child: GridView.count(
+                        shrinkWrap: true,
+                        physics: const BouncingScrollPhysics(),
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 1.1,
+                        children: [
+                          // Original 5 themes
+                          _buildDialogThemeOption(AppThemes.blue, setState),
+                          _buildDialogThemeOption(AppThemes.red, setState),
+                          _buildDialogThemeOption(AppThemes.yellow, setState),
+                          _buildDialogThemeOption(AppThemes.green, setState),
+                          _buildDialogThemeOption(AppThemes.purple, setState),
+                          // New themes
+                          _buildDialogThemeOption(AppThemes.dracula, setState),
+                          _buildDialogThemeOption(
+                              AppThemes.gruvbox, setState), // Original brown
+                          _buildDialogThemeOption(
+                              AppThemes.gruvboxGreen, setState), // New green
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Row(
@@ -408,6 +423,14 @@ class _SettingsPageState extends State<SettingsPage> {
         return Colors.green;
       case 'Purple':
         return Colors.purple;
+      case 'Dracula':
+        return const Color(0xFFBD93F9);
+      case 'Catppuccin':
+        return const Color(0xFF7287FD);
+      case 'Gruvbox':
+        return const Color(0xFFB57614); // Original brown/orange
+      case 'Gruvbox Green':
+        return const Color(0xFF8F9A4D); // New green
       default:
         return Colors.blue;
     }
